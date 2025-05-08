@@ -361,6 +361,7 @@
             RENTALSbutton.TabIndex = 39;
             RENTALSbutton.Text = "RENTALS";
             RENTALSbutton.UseVisualStyleBackColor = true;
+            RENTALSbutton.Click += RENTALSbutton_Click;
             // 
             // panel8
             // 

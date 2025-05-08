@@ -7,96 +7,108 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using WinFormsSampleApp1.Properties;
 
-namespace WinFormsSampleApp1.Properties
+namespace WinFormsSampleApp1
 {
-    public partial class AdminForm4TNT : Form
+    public partial class EmployeeForm3TNT : Form
     {
         private dbRepository dbRepo = new dbRepository();
+        private string _employeeEmail;
 
-        public AdminForm4TNT()
+        public EmployeeForm3TNT(string employeeEmail)
         {
             InitializeComponent();
+            _employeeEmail = employeeEmail;
+            openFileDialog1 = new OpenFileDialog();
             SearchBtmTenant.Click += SearchBtmTenant_Click;
             dataGridViewTenant.CellClick += dataGridViewTenant_CellClick;
         }
 
-        private void AdminForm4TNT_Load(object sender, EventArgs e)
+        private void EmployeeForm3TNT_Load(object sender, EventArgs e)
         {
-            // Fetch No Tenant (from the tenant table)
-            int tenantCount = dbRepo.GetTenantNo();
+            try
+            {
+                if (dbRepo == null)
+                    throw new Exception("dbRepo is not initialized!");
 
-            TenantNo.Text = $"{tenantCount}";
-
-            LoadTenantData();
-
+                int tenantCount = dbRepo.GetTenantNo();
+                TenantNo.Text = $"{tenantCount}";
+                LoadTenantData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading form: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        private void DASHBOARD_Click(object sender, EventArgs e)
+        private void ITEMS_Click(object sender, EventArgs e)
         {
-            // Navigate to AdminForm1
-            AdminForm1 adminForm1 = new AdminForm1();
-            adminForm1.Show();
-
-            // Optionally, hide the current login form
+            EmployeeForm1 employeeForm = new EmployeeForm1(_employeeEmail);
+            employeeForm.Show();
             this.Hide();
         }
 
-        private void INVENTORY_Click(object sender, EventArgs e)
+        private void RENTALSbutton_Click(object sender, EventArgs e)
         {
-
-            // Navigate to AdminFform1
-            AdminForm2INV adminForm2 = new AdminForm2INV();
-            adminForm2.Show();
-
-            // Optionally, hide the current login form
-            this.Hide();
-        }
-
-        private void RENTALS_Click(object sender, EventArgs e)
-        {
-
-            // Navigate to AdminFform1
-            AdminForm3RNT adminForm3 = new AdminForm3RNT();
-            adminForm3.Show();
-
-            // Optionally, hide the current login form
+            EmployeeForm2RNT employeeForm2 = new EmployeeForm2RNT(_employeeEmail);
+            employeeForm2.Show();
             this.Hide();
         }
 
         private void TENANT_Click(object sender, EventArgs e)
         {
-            WindowManager.ReloadWindow("AdminForm4TNT");
-        }
-
-        private void EMPLOYEES_Click(object sender, EventArgs e)
-        {
-            // Navigate to AdminFform1
-            AdminForm5EMPY adminForm5 = new AdminForm5EMPY();
-            adminForm5.Show();
-
-            // Optionally, hide the current login form
+            EmployeeForm3TNT employeeForm3 = new EmployeeForm3TNT(_employeeEmail);
+            employeeForm3.Show();
             this.Hide();
         }
 
         private void TRANSACTION_Click(object sender, EventArgs e)
         {
-            // Navigate to AdminFform1
-            AdminForm6TRS adminForm6 = new AdminForm6TRS();
-            adminForm6.Show();
-
-            // Optionally, hide the current login form
+            EmployeeForm4TANS employeeForm4 = new EmployeeForm4TANS(_employeeEmail);
+            employeeForm4.Show();
             this.Hide();
         }
 
         private void LOGOUT_Click(object sender, EventArgs e)
         {
-            // Navigate to Login
-            LoginForm LoginForm = new LoginForm();
-            LoginForm.Show();
+            try
+            {
+                // Get the current employee email from the repository
+                string currentEmail = _employeeEmail;
 
-            // Optionally, hide the current login form
-            this.Hide();
+                if (!string.IsNullOrEmpty(currentEmail))
+                {
+                    // Update status to offline
+                    bool success = dbRepo.SetEmployeeOffline(currentEmail);
+
+                    if (!success)
+                    {
+                        MessageBox.Show("Failed to update logout status.", "Warning",
+                                      MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+
+                // Navigate to Login
+                LoginForm loginForm = new LoginForm();
+                loginForm.Show();
+                this.Hide();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during logout: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void pictureBox2_Click(object sender, EventArgs e)
+        {
+
         }
 
         private void InsertGovIdBtn_Click(object sender, EventArgs e)
@@ -365,19 +377,25 @@ namespace WinFormsSampleApp1.Properties
             TNTgivIDnotextBox.Clear();
         }
 
-        private void panel2_Paint(object sender, PaintEventArgs e)
+        private void InsertGovIdBtn_Click_1(object sender, EventArgs e)
         {
+            try
+            {
+                string governmentId = TNTgivIDnotextBox.Text.Trim();
 
-        }
+                // Step 2: Handle the government ID image upload
+                string govIdImagePath = SaveGovernmentIdImage(governmentId);
 
-        private void pictureBox1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void dataGridViewTenant_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-
+                if (string.IsNullOrEmpty(govIdImagePath))
+                {
+                    MessageBox.Show("Failed to save government ID image.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error inserting tenant: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

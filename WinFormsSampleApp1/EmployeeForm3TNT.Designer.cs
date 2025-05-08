@@ -1,6 +1,6 @@
-﻿namespace WinFormsSampleApp1.Properties
+﻿namespace WinFormsSampleApp1
 {
-    partial class AdminForm4TNT
+    partial class EmployeeForm3TNT
     {
         /// <summary>
         /// Required designer variable.
@@ -28,14 +28,12 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AdminForm4TNT));
-            EMPLOYEES = new Button();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(EmployeeForm3TNT));
+            RENTALSbutton = new Button();
             LOGOUT = new Button();
-            RENTALS = new Button();
             TRANSACTION = new Button();
-            INVENTORY = new Button();
+            ITEMS = new Button();
             TENANT = new Button();
-            DASHBOARD = new Button();
             pictureBox2 = new PictureBox();
             pictureBox1 = new PictureBox();
             panel5 = new Panel();
@@ -43,8 +41,8 @@
             TenantNo = new Label();
             Tenants = new Label();
             panel1 = new Panel();
-            InsertTenantbutton = new Button();
             InsertGovIdBtn = new Button();
+            InsertTenantbutton = new Button();
             label5 = new Label();
             TNTgivIDnotextBox = new TextBox();
             label4 = new Label();
@@ -58,7 +56,7 @@
             dataGridViewTenant = new DataGridView();
             SearchBtmTenant = new Button();
             SearchTenant = new TextBox();
-            openFileDialog1 = new OpenFileDialog();
+            label6 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             panel5.SuspendLayout();
@@ -68,107 +66,84 @@
             ((System.ComponentModel.ISupportInitialize)dataGridViewTenant).BeginInit();
             SuspendLayout();
             // 
-            // EMPLOYEES
+            // RENTALSbutton
             // 
-            EMPLOYEES.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            EMPLOYEES.Location = new Point(23, 390);
-            EMPLOYEES.Name = "EMPLOYEES";
-            EMPLOYEES.Size = new Size(168, 40);
-            EMPLOYEES.TabIndex = 34;
-            EMPLOYEES.Text = "EMPLOYEES";
-            EMPLOYEES.UseVisualStyleBackColor = true;
-            EMPLOYEES.Click += EMPLOYEES_Click;
+            RENTALSbutton.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            RENTALSbutton.Location = new Point(24, 209);
+            RENTALSbutton.Name = "RENTALSbutton";
+            RENTALSbutton.Size = new Size(168, 40);
+            RENTALSbutton.TabIndex = 46;
+            RENTALSbutton.Text = "RENTALS";
+            RENTALSbutton.UseVisualStyleBackColor = true;
+            RENTALSbutton.Click += RENTALSbutton_Click;
             // 
             // LOGOUT
             // 
             LOGOUT.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            LOGOUT.Location = new Point(23, 634);
+            LOGOUT.Location = new Point(24, 576);
             LOGOUT.Name = "LOGOUT";
             LOGOUT.Size = new Size(168, 40);
-            LOGOUT.TabIndex = 33;
+            LOGOUT.TabIndex = 45;
             LOGOUT.Text = "LOGOUT";
             LOGOUT.UseVisualStyleBackColor = true;
             LOGOUT.Click += LOGOUT_Click;
             // 
-            // RENTALS
-            // 
-            RENTALS.BackColor = Color.White;
-            RENTALS.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            RENTALS.ForeColor = SystemColors.MenuText;
-            RENTALS.Location = new Point(23, 271);
-            RENTALS.Name = "RENTALS";
-            RENTALS.Size = new Size(168, 40);
-            RENTALS.TabIndex = 32;
-            RENTALS.Text = "RENTALS";
-            RENTALS.UseVisualStyleBackColor = false;
-            RENTALS.Click += RENTALS_Click;
-            // 
             // TRANSACTION
             // 
             TRANSACTION.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            TRANSACTION.Location = new Point(23, 448);
+            TRANSACTION.Location = new Point(24, 328);
             TRANSACTION.Name = "TRANSACTION";
             TRANSACTION.Size = new Size(168, 40);
-            TRANSACTION.TabIndex = 31;
+            TRANSACTION.TabIndex = 44;
             TRANSACTION.Text = "TRANSACTION";
             TRANSACTION.UseVisualStyleBackColor = true;
             TRANSACTION.Click += TRANSACTION_Click;
             // 
-            // INVENTORY
+            // ITEMS
             // 
-            INVENTORY.BackColor = Color.White;
-            INVENTORY.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            INVENTORY.ForeColor = SystemColors.ActiveCaptionText;
-            INVENTORY.Location = new Point(23, 212);
-            INVENTORY.Name = "INVENTORY";
-            INVENTORY.Size = new Size(168, 40);
-            INVENTORY.TabIndex = 30;
-            INVENTORY.Text = "INVENTORY";
-            INVENTORY.UseVisualStyleBackColor = false;
-            INVENTORY.Click += INVENTORY_Click;
+            ITEMS.BackColor = Color.White;
+            ITEMS.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            ITEMS.ForeColor = SystemColors.WindowText;
+            ITEMS.Location = new Point(24, 149);
+            ITEMS.Name = "ITEMS";
+            ITEMS.Size = new Size(168, 40);
+            ITEMS.TabIndex = 43;
+            ITEMS.Text = "ITEMS";
+            ITEMS.UseVisualStyleBackColor = false;
+            ITEMS.Click += ITEMS_Click;
             // 
             // TENANT
             // 
             TENANT.BackColor = Color.Brown;
             TENANT.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            TENANT.ForeColor = SystemColors.Window;
-            TENANT.Location = new Point(23, 331);
+            TENANT.ForeColor = SystemColors.ControlLightLight;
+            TENANT.Location = new Point(24, 268);
             TENANT.Name = "TENANT";
             TENANT.Size = new Size(168, 40);
-            TENANT.TabIndex = 29;
+            TENANT.TabIndex = 42;
             TENANT.Text = "TENANT";
             TENANT.UseVisualStyleBackColor = false;
             TENANT.Click += TENANT_Click;
             // 
-            // DASHBOARD
-            // 
-            DASHBOARD.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            DASHBOARD.Location = new Point(23, 154);
-            DASHBOARD.Name = "DASHBOARD";
-            DASHBOARD.Size = new Size(168, 40);
-            DASHBOARD.TabIndex = 28;
-            DASHBOARD.Text = "DASHBOARD";
-            DASHBOARD.UseVisualStyleBackColor = true;
-            DASHBOARD.Click += DASHBOARD_Click;
-            // 
             // pictureBox2
             // 
             pictureBox2.BackColor = Color.DarkRed;
-            pictureBox2.Image = Resources._02053c90_9350_4488_8fd0_33a40144cd91_removebg_preview;
-            pictureBox2.Location = new Point(23, 13);
+            pictureBox2.Image = Properties.Resources._02053c90_9350_4488_8fd0_33a40144cd91_removebg_preview;
+            pictureBox2.Location = new Point(24, 11);
             pictureBox2.Name = "pictureBox2";
             pictureBox2.Size = new Size(168, 116);
             pictureBox2.SizeMode = PictureBoxSizeMode.Zoom;
-            pictureBox2.TabIndex = 27;
+            pictureBox2.TabIndex = 41;
             pictureBox2.TabStop = false;
+            pictureBox2.Click += pictureBox2_Click;
             // 
             // pictureBox1
             // 
             pictureBox1.BackColor = Color.DarkRed;
-            pictureBox1.Location = new Point(-2, -2);
+            pictureBox1.Location = new Point(-1, -1);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(223, 696);
-            pictureBox1.TabIndex = 26;
+            pictureBox1.Size = new Size(223, 697);
+            pictureBox1.TabIndex = 40;
             pictureBox1.TabStop = false;
             pictureBox1.Click += pictureBox1_Click;
             // 
@@ -178,14 +153,14 @@
             panel5.Controls.Add(pictureBox5);
             panel5.Controls.Add(TenantNo);
             panel5.Controls.Add(Tenants);
-            panel5.Location = new Point(244, 13);
+            panel5.Location = new Point(238, 15);
             panel5.Name = "panel5";
             panel5.Size = new Size(266, 138);
-            panel5.TabIndex = 35;
+            panel5.TabIndex = 47;
             // 
             // pictureBox5
             // 
-            pictureBox5.Image = Resources.renter;
+            pictureBox5.Image = Properties.Resources.renter;
             pictureBox5.Location = new Point(145, 17);
             pictureBox5.Name = "pictureBox5";
             pictureBox5.Size = new Size(101, 100);
@@ -217,8 +192,9 @@
             // panel1
             // 
             panel1.BackColor = SystemColors.Window;
-            panel1.Controls.Add(InsertTenantbutton);
+            panel1.Controls.Add(label6);
             panel1.Controls.Add(InsertGovIdBtn);
+            panel1.Controls.Add(InsertTenantbutton);
             panel1.Controls.Add(label5);
             panel1.Controls.Add(TNTgivIDnotextBox);
             panel1.Controls.Add(label4);
@@ -228,10 +204,20 @@
             panel1.Controls.Add(label2);
             panel1.Controls.Add(TNTnametextBox);
             panel1.Controls.Add(label1);
-            panel1.Location = new Point(247, 168);
+            panel1.Location = new Point(238, 173);
             panel1.Name = "panel1";
             panel1.Size = new Size(263, 506);
-            panel1.TabIndex = 36;
+            panel1.TabIndex = 48;
+            // 
+            // InsertGovIdBtn
+            // 
+            InsertGovIdBtn.Location = new Point(22, 378);
+            InsertGovIdBtn.Name = "InsertGovIdBtn";
+            InsertGovIdBtn.Size = new Size(99, 23);
+            InsertGovIdBtn.TabIndex = 28;
+            InsertGovIdBtn.Text = "Brows File";
+            InsertGovIdBtn.UseVisualStyleBackColor = true;
+            InsertGovIdBtn.Click += InsertGovIdBtn_Click_1;
             // 
             // InsertTenantbutton
             // 
@@ -244,26 +230,16 @@
             InsertTenantbutton.UseVisualStyleBackColor = true;
             InsertTenantbutton.Click += InsertTenantbutton_Click;
             // 
-            // InsertGovIdBtn
-            // 
-            InsertGovIdBtn.Location = new Point(21, 378);
-            InsertGovIdBtn.Name = "InsertGovIdBtn";
-            InsertGovIdBtn.Size = new Size(99, 23);
-            InsertGovIdBtn.TabIndex = 25;
-            InsertGovIdBtn.Text = "Brows File";
-            InsertGovIdBtn.UseVisualStyleBackColor = true;
-            InsertGovIdBtn.Click += InsertGovIdBtn_Click;
-            // 
             // label5
             // 
             label5.AutoSize = true;
             label5.BackColor = SystemColors.Window;
             label5.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label5.Location = new Point(21, 355);
+            label5.Location = new Point(22, 289);
             label5.Name = "label5";
-            label5.Size = new Size(96, 20);
+            label5.Size = new Size(82, 20);
             label5.TabIndex = 23;
-            label5.Text = "Insert Img ID";
+            label5.Text = "Gov Id No.";
             // 
             // TNTgivIDnotextBox
             // 
@@ -346,11 +322,10 @@
             panel2.Controls.Add(dataGridViewTenant);
             panel2.Controls.Add(SearchBtmTenant);
             panel2.Controls.Add(SearchTenant);
-            panel2.Location = new Point(531, 13);
+            panel2.Location = new Point(530, 15);
             panel2.Name = "panel2";
             panel2.Size = new Size(799, 661);
-            panel2.TabIndex = 37;
-            panel2.Paint += panel2_Paint;
+            panel2.TabIndex = 49;
             // 
             // dataGridViewTenant
             // 
@@ -360,7 +335,6 @@
             dataGridViewTenant.Name = "dataGridViewTenant";
             dataGridViewTenant.Size = new Size(743, 546);
             dataGridViewTenant.TabIndex = 4;
-            dataGridViewTenant.CellContentClick += dataGridViewTenant_CellContentClick;
             // 
             // SearchBtmTenant
             // 
@@ -383,11 +357,18 @@
             SearchTenant.Size = new Size(570, 40);
             SearchTenant.TabIndex = 2;
             // 
-            // openFileDialog1
+            // label6
             // 
-            openFileDialog1.FileName = "openFileDialog1";
+            label6.AutoSize = true;
+            label6.BackColor = SystemColors.Window;
+            label6.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label6.Location = new Point(25, 355);
+            label6.Name = "label6";
+            label6.Size = new Size(96, 20);
+            label6.TabIndex = 50;
+            label6.Text = "Insert Img ID";
             // 
-            // AdminForm4TNT
+            // EmployeeForm3TNT
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -395,22 +376,20 @@
             Controls.Add(panel2);
             Controls.Add(panel1);
             Controls.Add(panel5);
-            Controls.Add(EMPLOYEES);
+            Controls.Add(RENTALSbutton);
             Controls.Add(LOGOUT);
-            Controls.Add(RENTALS);
             Controls.Add(TRANSACTION);
-            Controls.Add(INVENTORY);
+            Controls.Add(ITEMS);
             Controls.Add(TENANT);
-            Controls.Add(DASHBOARD);
             Controls.Add(pictureBox2);
             Controls.Add(pictureBox1);
             Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
             MdiChildrenMinimizedAnchorBottom = false;
-            Name = "AdminForm4TNT";
+            Name = "EmployeeForm3TNT";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "AdminForm4TNT";
-            Load += AdminForm4TNT_Load;
+            Text = "EmployeeForm3TNT";
+            Load += EmployeeForm3TNT_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             panel5.ResumeLayout(false);
@@ -426,13 +405,11 @@
 
         #endregion
 
-        private Button EMPLOYEES;
+        private Button RENTALSbutton;
         private Button LOGOUT;
-        private Button RENTALS;
         private Button TRANSACTION;
-        private Button INVENTORY;
+        private Button ITEMS;
         private Button TENANT;
-        private Button DASHBOARD;
         private PictureBox pictureBox2;
         private PictureBox pictureBox1;
         private Panel panel5;
@@ -440,21 +417,22 @@
         public Label TenantNo;
         private Label Tenants;
         private Panel panel1;
-        private Panel panel2;
-        private DataGridView dataGridViewTenant;
-        private Button SearchBtmTenant;
-        private TextBox SearchTenant;
-        private Label label2;
-        private TextBox TNTnametextBox;
-        public Label label1;
+        private Button InsertTenantbutton;
+        private Label label5;
+        private TextBox TNTgivIDnotextBox;
+        private OpenFileDialog openFileDialog1;
         private Label label4;
         private TextBox TNTmobileNotextBox;
         private Label label3;
         private TextBox TNTemailtextBox;
-        private Label label5;
-        private TextBox TNTgivIDnotextBox;
-        private OpenFileDialog openFileDialog1;
+        private Label label2;
+        private TextBox TNTnametextBox;
+        public Label label1;
+        private Panel panel2;
+        private DataGridView dataGridViewTenant;
+        private Button SearchBtmTenant;
+        private TextBox SearchTenant;
         private Button InsertGovIdBtn;
-        private Button InsertTenantbutton;
+        private Label label6;
     }
 }

@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using static Mysqlx.Expect.Open.Types;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace WinFormsSampleApp1.Properties
 {
@@ -53,17 +54,23 @@ namespace WinFormsSampleApp1.Properties
 
         private void ITEMS_Click(object sender, EventArgs e)
         {
-
+            EmployeeForm1 employeeForm = new EmployeeForm1(_employeeEmail);
+            employeeForm.Show();
+            this.Hide();
         }
 
         private void TENANT_Click(object sender, EventArgs e)
         {
-
+            EmployeeForm3TNT employeeForm3 = new EmployeeForm3TNT(_employeeEmail);
+            employeeForm3.Show();
+            this.Hide();
         }
 
         private void TRANSACTION_Click(object sender, EventArgs e)
         {
-
+            EmployeeForm4TANS employeeForm4 = new EmployeeForm4TANS(_employeeEmail);
+            employeeForm4.Show();
+            this.Hide();
         }
 
         private void LOGOUT_Click(object sender, EventArgs e)
@@ -375,5 +382,11 @@ namespace WinFormsSampleApp1.Properties
             LoadProductData(searchTerm);
         }
 
+        private void RENTALSbutton_Click(object sender, EventArgs e)
+        {
+            EmployeeForm2RNT employeeForm2 = new EmployeeForm2RNT(_employeeEmail);
+            employeeForm2.Show();
+            this.Hide();
+        }
     }
 }
