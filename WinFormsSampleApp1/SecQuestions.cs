@@ -136,5 +136,10 @@ namespace WinFormsSampleApp1
                 }
             }
         }
+
+        private void SecQuestions_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

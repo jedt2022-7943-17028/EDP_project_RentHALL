@@ -152,6 +152,7 @@
             Name = "SecQuestions";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "SecQuestions";
+            Load += SecQuestions_Load;
             ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
             ResumeLayout(false);
             PerformLayout();

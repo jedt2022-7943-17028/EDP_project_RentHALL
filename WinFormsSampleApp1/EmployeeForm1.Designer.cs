@@ -42,6 +42,7 @@
             label6 = new Label();
             label2 = new Label();
             panel7 = new Panel();
+            label3 = new Label();
             pictureBox9 = new PictureBox();
             Rented = new Label();
             TotalUnits = new Label();
@@ -63,7 +64,6 @@
             panel1 = new Panel();
             SearchBtm = new Button();
             SearchBox = new TextBox();
-            label3 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox4).BeginInit();
@@ -223,6 +223,17 @@
             panel7.Name = "panel7";
             panel7.Size = new Size(266, 171);
             panel7.TabIndex = 33;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.BackColor = SystemColors.Window;
+            label3.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label3.Location = new Point(14, 130);
+            label3.Name = "label3";
+            label3.Size = new Size(57, 20);
+            label3.TabIndex = 40;
+            label3.Text = "Rented";
             // 
             // pictureBox9
             // 
@@ -392,6 +403,7 @@
             dataGridViewINV.Name = "dataGridViewINV";
             dataGridViewINV.Size = new Size(814, 349);
             dataGridViewINV.TabIndex = 37;
+            dataGridViewINV.CellContentClick += dataGridViewINV_CellContentClick_1;
             // 
             // dataGridViewProd
             // 
@@ -421,6 +433,7 @@
             SearchBtm.TabIndex = 1;
             SearchBtm.Text = "Search";
             SearchBtm.UseVisualStyleBackColor = true;
+            SearchBtm.Click += SearchBtm_Click;
             // 
             // SearchBox
             // 
@@ -431,17 +444,6 @@
             SearchBox.Name = "SearchBox";
             SearchBox.Size = new Size(600, 40);
             SearchBox.TabIndex = 0;
-            // 
-            // label3
-            // 
-            label3.AutoSize = true;
-            label3.BackColor = SystemColors.Window;
-            label3.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label3.Location = new Point(14, 130);
-            label3.Name = "label3";
-            label3.Size = new Size(57, 20);
-            label3.TabIndex = 40;
-            label3.Text = "Rented";
             // 
             // EmployeeForm1
             // 
@@ -522,5 +524,6 @@
         private Button SearchBtm;
         private TextBox SearchBox;
         private Label label3;
+
     }
 }

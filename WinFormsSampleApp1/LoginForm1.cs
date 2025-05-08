@@ -62,7 +62,7 @@ namespace WinFormsSampleApp1
             }
             else
             {
-                // Existing login logic (your original code)
+                // Log in
                 string ownerPasswordHash = dbRepo.GetOwnerPasswordHash(username);
                 if (!string.IsNullOrEmpty(ownerPasswordHash) && BCrypt.Net.BCrypt.Verify(password, ownerPasswordHash))
                 {
@@ -79,7 +79,7 @@ namespace WinFormsSampleApp1
                     // Track the logged-in employee
                     dbRepo.SetCurrentEmployeeEmail(username);
                     dbRepo.UpdateEmployeeActivityLog(employeePasswordHash);
-                    EmployeeForm1 employeeForm = new EmployeeForm1();
+                    EmployeeForm1 employeeForm = new EmployeeForm1(username);
                     employeeForm.Show();
                     this.Hide();
                     return;

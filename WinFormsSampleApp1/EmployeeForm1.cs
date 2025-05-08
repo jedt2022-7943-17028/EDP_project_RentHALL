@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Google.Protobuf.WellKnownTypes;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -7,16 +8,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static Mysqlx.Expect.Open.Types;
 
 namespace WinFormsSampleApp1.Properties
 {
     public partial class EmployeeForm1 : Form
     {
         private dbRepository dbRepo = new dbRepository();
+        private string _employeeEmail;
 
-        public EmployeeForm1()
+        public EmployeeForm1(string email)
         {
             InitializeComponent();
+            _employeeEmail = email;
         }
 
         private void EmployeeForm1_Load(object sender, EventArgs e)
@@ -33,7 +37,7 @@ namespace WinFormsSampleApp1.Properties
             // Fetch No Available Unit (from the inventory table)
             int availableUnit = dbRepo.GetAvlUnit();
 
-            string employee_name = dbRepo.GetEmployeeName();
+            string employee_name = dbRepo.GetEmployeeName(_employeeEmail);
 
             NoUnit.Text = $"{unitTotalCount}";
             NoRentedUnit.Text = $"{unitTotalRentedCount}";
@@ -64,12 +68,33 @@ namespace WinFormsSampleApp1.Properties
 
         private void LOGOUT_Click(object sender, EventArgs e)
         {
-            // Navigate to Login
-            LoginForm LoginForm = new LoginForm();
-            LoginForm.Show();
+            try
+            {
+                // Get the current employee email from the repository
+                string currentEmail = _employeeEmail;
 
-            // Optionally, hide the current login form
-            this.Hide();
+                if (!string.IsNullOrEmpty(currentEmail))
+                {
+                    // Update status to offline
+                    bool success = dbRepo.SetEmployeeOffline(currentEmail);
+
+                    if (!success)
+                    {
+                        MessageBox.Show("Failed to update logout status.", "Warning",
+                                      MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+
+                // Navigate to Login
+                LoginForm loginForm = new LoginForm();
+                loginForm.Show();
+                this.Hide();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error during logout: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void LoadInventoryData(string searchTerm = null)
@@ -83,37 +108,241 @@ namespace WinFormsSampleApp1.Properties
                 dataGridViewINV.DataSource = inventoryData;
 
                 // Remove unwanted columns
-                dataGridViewINV.Columns["product_id"].Visible = false;
+                if (dataGridViewINV.Columns.Contains("product_id"))
+                    dataGridViewINV.Columns["product_id"].Visible = false;
 
-                // Add Update and Delete button columns
-                if (!dataGridViewINV.Columns.Contains("Update"))
+                // Add Action Button Column if not already added
+                if (!dataGridViewINV.Columns.Contains("ActionColumn"))
                 {
-                    DataGridViewButtonColumn updateColumn = new DataGridViewButtonColumn
+                    DataGridViewButtonColumn actionColumn = new DataGridViewButtonColumn
                     {
-                        Name = "Update",
-                        HeaderText = "Update",
-                        Text = "Update",
-                        UseColumnTextForButtonValue = true
+                        Name = "ActionColumn",
+                        HeaderText = "Action",
+                        Text = "Action",
+                        UseColumnTextForButtonValue = false // Uses cell value as button text
                     };
-                    dataGridViewINV.Columns.Add(updateColumn);
+                    dataGridViewINV.Columns.Add(actionColumn);
                 }
 
-                if (!dataGridViewINV.Columns.Contains("Delete"))
+                // Update button text based on status
+                foreach (DataGridViewRow row in dataGridViewINV.Rows)
                 {
-                    DataGridViewButtonColumn deleteColumn = new DataGridViewButtonColumn
+                    if (row.IsNewRow) continue;
+
+                    string status = row.Cells["status"].Value?.ToString().ToLower();
+
+                    switch (status)
                     {
-                        Name = "Delete",
-                        HeaderText = "Delete",
-                        Text = "Delete",
-                        UseColumnTextForButtonValue = true
-                    };
-                    dataGridViewINV.Columns.Add(deleteColumn);
+                        case "available":
+                            row.Cells["ActionColumn"].Value = "Rent";
+                            break;
+                        case "rented":
+                            row.Cells["ActionColumn"].Value = "Return";
+                            break;
+                        case "maintenance":
+                            row.Cells["ActionColumn"].Value = "Available";
+                            break;
+                        default:
+                            row.Cells["ActionColumn"].Value = "";
+                            break;
+                    }
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading inventory data: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void dataGridViewINV_CellContentClick_1(object sender, DataGridViewCellEventArgs e)
+        {
+            var senderGrid = (DataGridView)sender;
+
+            // Ignore clicks on header or invalid rows
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            // Only handle clicks in the ActionColumn
+            if (senderGrid.Columns[e.ColumnIndex].Name != "ActionColumn") return;
+
+            // Get the clicked row data
+            DataGridViewRow row = senderGrid.Rows[e.RowIndex];
+            string productId = row.Cells["id"].Value?.ToString();
+            string currentStatus = row.Cells["status"].Value?.ToString()?.ToLower();
+            string buttonText = row.Cells["ActionColumn"].Value?.ToString();
+
+            // Handle Rent button click
+            if (buttonText?.Equals("Rent", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                ShowRentDialog(productId);
+            }
+            // Handle Return button click
+            else if (buttonText?.Equals("Return", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                // Implement return logic here
+                ReturnProduct(productId);
+            }
+            // Handle Available button click
+            else if (buttonText?.Equals("Available", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                // Implement available logic here
+                MarkAsAvailable(productId);
+            }
+        }
+
+        private void ShowRentDialog(string productId)
+        {
+            try
+            {
+                MessageBox.Show($"Attempting to rent product with ID: {productId}",
+                      "Product Information",
+                      MessageBoxButtons.OK,
+                      MessageBoxIcon.Information);
+
+                // Get product details
+                DataRow inventoryDetails = dbRepo.GetInventoryDetails(productId);
+                if (inventoryDetails == null)
+                {
+                    MessageBox.Show("Product details not found.", "Error",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Get tenants list
+                DataTable tenants = dbRepo.GetTenantData();
+                if (tenants == null || tenants.Rows.Count == 0)
+                {
+                    MessageBox.Show("No tenants available.", "Error",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Create and configure the dialog form
+                using (Form rentDialog = new Form()
+                {
+                    Width = 400,
+                    Height = 300,
+                    Text = "Rent Product",
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false
+                })
+                {
+                    // Create and configure controls
+                    TextBox txtDetails = new TextBox()
+                    {
+                        Text = $"Product: {inventoryDetails["product_name"]}\r\n" +
+                               $"Serial: {inventoryDetails["serial_number"]}\r\n" +
+                               $"Description: {inventoryDetails["description"]}\r\n" +
+                               $"Condition: {inventoryDetails["current_condition"]}\r\n" +
+                               $"Size: {inventoryDetails["size"]}\r\n" +
+                               $"Duration: {inventoryDetails["price_unit"]}\r\n" +
+                               $"Price :  ₱{inventoryDetails["base_price"]}",
+                        Multiline = true,
+                        ReadOnly = true,
+                        ScrollBars = ScrollBars.Vertical,
+                        Dock = DockStyle.Top,
+                        Height = 120
+                    };
+
+                    Label lblTenant = new Label()
+                    {
+                        Text = "Select Tenant:",
+                        Dock = DockStyle.Top,
+                        Height = 40
+                    };
+
+                    ComboBox tenantCombo = new ComboBox()
+                    {
+                        Dock = DockStyle.Top,
+                        DisplayMember = "full_name",
+                        ValueMember = "tenant_id",
+                        DataSource = tenants,
+                        DropDownStyle = ComboBoxStyle.DropDownList
+                    };
+
+                    Button btnConfirm = new Button()
+                    {
+                        Text = "Confirm Rent",
+                        Dock = DockStyle.Bottom,
+                        Height = 40,
+                        Width = 50,
+                        DialogResult = DialogResult.OK
+                    };
+
+                    // Handle confirm button click
+                    btnConfirm.Click += (s, ev) =>
+                    {
+                        if (tenantCombo.SelectedValue == null)
+                        {
+                            MessageBox.Show("Please select a tenant", "Error",
+                                          MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        DataRowView selectedTenant = (DataRowView)tenantCombo.SelectedItem;
+                        string tenantId = selectedTenant["id"].ToString();
+                        string duration = inventoryDetails["price_unit"].ToString();
+                        string priceUnit = inventoryDetails["base_price"].ToString();
+                        string serialNumber = inventoryDetails["serial_number"].ToString();
+                        string condition = inventoryDetails["current_condition"].ToString();
+                        RentProduct(productId, tenantId, priceUnit, duration, serialNumber, condition);
+                    };
+
+                    // Add controls to form
+                    rentDialog.Controls.Add(btnConfirm);
+                    rentDialog.Controls.Add(tenantCombo);
+                    rentDialog.Controls.Add(lblTenant);
+                    rentDialog.Controls.Add(txtDetails);
+
+                    // Show dialog
+                    if (rentDialog.ShowDialog(this) == DialogResult.OK)
+                    {
+                        // Refresh data after successful operation
+                        LoadInventoryData();
+                        LoadProductData();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error showing rent dialog: {ex.Message}", "Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void RentProduct(string productId, string tenantId, string priceUnit, string duration, string serialNumber, string condition)
+        {
+            try
+            {
+                if (dbRepo.RentProduct(productId, tenantId, _employeeEmail, priceUnit, duration, serialNumber, condition))
+                {
+                    MessageBox.Show("Product rented successfully!", "Success",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show("Failed to rent product", "Error",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error renting product: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void ReturnProduct(string productId)
+        {
+            // Implement your return logic here
+            // Similar structure to RentProduct
+        }
+
+        private void MarkAsAvailable(string productId)
+        {
+            // Implement your available logic here
+            // Similar structure to RentProduct
         }
 
         private void LoadProductData(string searchTerm = null)
@@ -136,7 +365,15 @@ namespace WinFormsSampleApp1.Properties
             }
         }
 
+        private void SearchBtm_Click(object sender, EventArgs e)
+        {
+            // Get the search term from the SearchBox
+            string searchTerm = SearchBox.Text.Trim();
 
+            // Reload the data with the search term
+            LoadInventoryData(searchTerm);
+            LoadProductData(searchTerm);
+        }
 
     }
 }

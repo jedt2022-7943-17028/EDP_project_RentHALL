@@ -124,12 +124,12 @@ namespace WinFormsSampleApp1.Properties
 
                     // Query to update the login_time in the employee_activity_log table
                     string query = @"
-                    UPDATE 
-                        employee
-                    SET 
-                        status = 'active'
-                    WHERE 
-                        emp_password = @employeeId";
+                        UPDATE 
+                            employee
+                        SET 
+                            status = 'active'
+                        WHERE 
+                            emp_password = @employeeId";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
@@ -1920,6 +1920,170 @@ namespace WinFormsSampleApp1.Properties
                 return false;
             }
         }
+
+        public bool SetEmployeeOffline(string email)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "UPDATE employee SET status = 'offline' WHERE email = @email";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@email", email);
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error setting employee offline: " + ex.Message);
+                return false;
+            }
+        }
+
+        public DataRow GetInventoryDetails(string inventoryId)
+        {
+            DataTable dt = new DataTable();
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = @"SELECT i.*, p.name as product_name, pt.type_name as product_type, p.description, p.base_price, p.price_unit
+                            FROM inventory i
+                            JOIN product p ON i.product_id = p.id
+                            JOIN product_type pt ON p.product_type_id = pt.id
+                            WHERE i.id = @inventoryId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@inventoryId", inventoryId);
+
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                    }
+                }
+
+                return dt.Rows.Count > 0 ? dt.Rows[0] : null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error fetching inventory details: " + ex.Message);
+                return null;
+            }
+        }
+
+        public bool RentProduct(string inventoryId, string tenantId, string employeeEmail, string price, string duration, string serialNum, string condition)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    int inventory = Convert.ToInt32(inventoryId);
+                    int tenant = Convert.ToInt32(tenantId);
+
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // 1. Get employee id
+                            string getEmployeeQuery = @"SELECT id FROM employee WHERE email = @employeeEmail";
+                            int employeeId = 0;
+
+                            using (MySqlCommand cmd = new MySqlCommand(getEmployeeQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@employeeEmail", employeeEmail);
+                                object result = cmd.ExecuteScalar();
+                                if (result == null)
+                                {
+                                    transaction.Rollback();
+                                    return false;
+                                }
+                                employeeId = Convert.ToInt32(result);
+                            }
+
+                            MessageBox.Show($"Attempting to make rental agreement\r\n" +
+                              $"Product ID: {inventory}\r\n" +
+                              $"Employee ID: {employeeId}\r\n" +
+                              $"priceUnit: {price}\r\n" +
+                              $"duration: {duration}\r\n" +
+                              $"serialNumber: {serialNum}\r\n" +
+                              $"condition: {condition}\r\n" +
+                              $"Tenant ID: {tenant}",
+                              "Tenant ID: {tenantId}",
+                              MessageBoxButtons.OK,
+                              MessageBoxIcon.Information);
+
+                            // 2. Insert into rental_agreement
+                            string insertAgreementQuery = @"INSERT INTO rental_agreement 
+                                        (tenant_id, status, agreed_price, duration, handled_by_employee_id)
+                                        VALUES (@tenantId, 'active', @price, @duration, @employeeId);
+                                        SELECT LAST_INSERT_ID();";
+
+                            int rentalAgreementId = 0;
+                            using (MySqlCommand cmd = new MySqlCommand(insertAgreementQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@tenantId", tenant);
+                                cmd.Parameters.AddWithValue("@price", price);
+                                cmd.Parameters.AddWithValue("@duration", duration);
+                                cmd.Parameters.AddWithValue("@employeeId", employeeId);
+
+                                rentalAgreementId = Convert.ToInt32(cmd.ExecuteScalar());
+                                if (rentalAgreementId <= 0)
+                                {
+                                    transaction.Rollback();
+                                    return false;
+                                }
+                            }
+
+                            // 3. Insert into rental_agreement_details
+                            string insertDetailsQuery = @"INSERT INTO rental_agreement_details
+                                        (rental_agreement_id, serial_number_id, check_out_date, condition_out)
+                                        VALUES (@rentalAgreementId, @serialNum, CURDATE(), @condition)";
+
+                            using (MySqlCommand cmd = new MySqlCommand(insertDetailsQuery, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+                                cmd.Parameters.AddWithValue("@serialNum", serialNum);
+                                cmd.Parameters.AddWithValue("@condition", condition);
+
+                                int detailsRows = cmd.ExecuteNonQuery();
+                                if (detailsRows <= 0)
+                                {
+                                    transaction.Rollback();
+                                    return false;
+                                }
+                            }
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            Console.WriteLine("Error in transaction: " + ex.Message);
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error renting product: " + ex.Message);
+                return false;
+            }
+        }
+
+
+
 
     }
 }
