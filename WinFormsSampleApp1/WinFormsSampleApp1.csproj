@@ -29,4 +29,9 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Resources\GovId\" />
+    <Folder Include="Resources\DB\" />
+  </ItemGroup>
+
 </Project>

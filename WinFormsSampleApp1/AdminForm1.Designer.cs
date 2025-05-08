@@ -61,6 +61,8 @@
             pictureBox7 = new PictureBox();
             OverdueRent = new Label();
             panel4 = new Panel();
+            EmpAct = new Label();
+            label6 = new Label();
             pictureBox4 = new PictureBox();
             EmpNo = new Label();
             label2 = new Label();
@@ -233,7 +235,7 @@
             Employee.AutoSize = true;
             Employee.BackColor = SystemColors.Window;
             Employee.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            Employee.Location = new Point(17, 70);
+            Employee.Location = new Point(22, 53);
             Employee.Name = "Employee";
             Employee.Size = new Size(76, 20);
             Employee.TabIndex = 15;
@@ -255,7 +257,7 @@
             Units.AutoSize = true;
             Units.BackColor = SystemColors.Window;
             Units.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            Units.Location = new Point(7, 13);
+            Units.Location = new Point(8, 16);
             Units.Name = "Units";
             Units.Size = new Size(85, 20);
             Units.TabIndex = 18;
@@ -383,7 +385,7 @@
             // 
             // pictureBox6
             // 
-            pictureBox6.Image = Properties.Resources.alert;
+            pictureBox6.Image = Properties.Resources.alert1;
             pictureBox6.Location = new Point(149, 25);
             pictureBox6.Name = "pictureBox6";
             pictureBox6.Size = new Size(95, 88);
@@ -435,6 +437,8 @@
             // panel4
             // 
             panel4.BackColor = SystemColors.Window;
+            panel4.Controls.Add(EmpAct);
+            panel4.Controls.Add(label6);
             panel4.Controls.Add(pictureBox4);
             panel4.Controls.Add(EmpNo);
             panel4.Controls.Add(label2);
@@ -444,9 +448,30 @@
             panel4.Size = new Size(266, 138);
             panel4.TabIndex = 31;
             // 
+            // EmpAct
+            // 
+            EmpAct.AutoSize = true;
+            EmpAct.Font = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            EmpAct.Location = new Point(22, 78);
+            EmpAct.Name = "EmpAct";
+            EmpAct.Size = new Size(94, 30);
+            EmpAct.TabIndex = 16;
+            EmpAct.Text = "Act Emp";
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.BackColor = SystemColors.Window;
+            label6.Font = new Font("Segoe UI Semibold", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label6.Location = new Point(22, 103);
+            label6.Name = "label6";
+            label6.Size = new Size(51, 20);
+            label6.TabIndex = 17;
+            label6.Text = "Active";
+            // 
             // pictureBox4
             // 
-            pictureBox4.Image = Properties.Resources.employee;
+            pictureBox4.Image = Properties.Resources.employee1;
             pictureBox4.Location = new Point(148, 21);
             pictureBox4.Name = "pictureBox4";
             pictureBox4.Size = new Size(101, 100);
@@ -458,7 +483,7 @@
             // 
             EmpNo.AutoSize = true;
             EmpNo.Font = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            EmpNo.Location = new Point(17, 28);
+            EmpNo.Location = new Point(22, 15);
             EmpNo.Name = "EmpNo";
             EmpNo.Size = new Size(96, 30);
             EmpNo.TabIndex = 1;
@@ -485,7 +510,7 @@
             // 
             // pictureBox5
             // 
-            pictureBox5.Image = Properties.Resources.renter;
+            pictureBox5.Image = Properties.Resources.renter1;
             pictureBox5.Location = new Point(145, 17);
             pictureBox5.Name = "pictureBox5";
             pictureBox5.Size = new Size(101, 100);
@@ -518,7 +543,7 @@
             // 
             // pictureBox8
             // 
-            pictureBox8.Image = Properties.Resources.warning;
+            pictureBox8.Image = Properties.Resources.warning1;
             pictureBox8.Location = new Point(150, 25);
             pictureBox8.Name = "pictureBox8";
             pictureBox8.Size = new Size(95, 88);
@@ -576,7 +601,7 @@
             // 
             // pictureBox9
             // 
-            pictureBox9.Image = Properties.Resources.room_key;
+            pictureBox9.Image = Properties.Resources.room_key1;
             pictureBox9.Location = new Point(86, 210);
             pictureBox9.Name = "pictureBox9";
             pictureBox9.Size = new Size(63, 61);
@@ -629,11 +654,11 @@
             // circularProgressBar1
             // 
             circularProgressBar1.BackColorArc = Color.LightGray;
-            circularProgressBar1.Location = new Point(-17, 68);
+            circularProgressBar1.Location = new Point(0, 68);
             circularProgressBar1.Maximum = 100;
             circularProgressBar1.Name = "circularProgressBar1";
             circularProgressBar1.ProgressColor = Color.DarkRed;
-            circularProgressBar1.Size = new Size(268, 183);
+            circularProgressBar1.Size = new Size(237, 183);
             circularProgressBar1.TabIndex = 34;
             circularProgressBar1.Text = "circularProgressBar1";
             circularProgressBar1.Value = 0;
@@ -762,5 +787,7 @@
         private PictureBox pictureBox7;
         private PictureBox pictureBox8;
         private PictureBox pictureBox9;
+        public Label EmpAct;
+        private Label label6;
     }
 }

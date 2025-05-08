@@ -40,8 +40,7 @@ namespace WinFormsSampleApp1
                 dataGridViewINV.DataSource = inventoryData;
 
                 // Remove unwanted columns
-                if (dataGridViewINV.Columns.Contains("product_id"))
-                    dataGridViewINV.Columns["product_id"].Visible = false; // Hide the 'product_id' column
+                dataGridViewINV.Columns["product_id"].Visible = false;
 
                 // Add Update and Delete button columns
                 if (!dataGridViewINV.Columns.Contains("Update"))
@@ -339,7 +338,13 @@ namespace WinFormsSampleApp1
                 }
 
                 // Step 2: Insert into product table using the product_type_id
-                dbRepo.InsertProduct(productTypeId, productName, description, basePrice, priceUnit);
+                int product = dbRepo.InsertProduct(productTypeId, productName, description, basePrice, priceUnit);
+
+                if (product == -1)
+                {
+                    MessageBox.Show("Failed to insert product details.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
                 // Success message
                 MessageBox.Show("Product and Product Type added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -361,6 +366,7 @@ namespace WinFormsSampleApp1
             textBoxType.Clear();
             textBoxCode.Clear();
             textBoxProd.Clear();
+            textBoxsize.Clear();
             richTextBoxDescription.Clear();
             textBoxbasePrice.Clear();
             comboBoxDuration.SelectedIndex = -1;
@@ -422,15 +428,32 @@ namespace WinFormsSampleApp1
                     return;
                 }
 
+                // Debug: Show values before insertion
+                //string debugInfo = $"DEBUG VALUES BEFORE INSERT:\n" +
+                //                  $"ProductId: {productId}\n" +
+                //                  $"serialNumber: {serialNumber}\n" +
+                //                  $"size: {size}";
+
+                //MessageBox.Show(debugInfo, "Debug Information",
+                //              MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                 // Insert the new inventory item
-                dbRepo.InsertInventoryItem(productId, serialNumber, size);
+                int success = dbRepo.InsertInventoryItem(productId, serialNumber, size);
+
+                if (success == -1)
+                {
+                    MessageBox.Show("Failed to insert to inventory.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
                 // Success message
                 MessageBox.Show("Inventory item added successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Reload the dataGrid
-                LoadInventoryData();
                 LoadProductData();
+                LoadInventoryData();
+
+                // Optionally, clear the input fields
+                ClearInputFields();
             }
             catch (Exception ex)
             {

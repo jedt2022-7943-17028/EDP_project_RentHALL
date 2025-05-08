@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MySqlX.XDevAPI.Common;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -34,7 +35,7 @@ namespace WinFormsSampleApp1
                 decimal maxRevenue = dbRepo.GetMaxRevenue();
 
                 // Fetch No Employee (from the employee table)
-                int employeeCount = dbRepo.GetEmpNo();
+                var employeeCount = dbRepo.GetEmpNo();
 
                 // Fetch No Tenant (from the tenant table)
                 int tenantCount = dbRepo.GetTenantNo();
@@ -72,7 +73,8 @@ namespace WinFormsSampleApp1
                 // Update the label text with the total revenue and progress bar'
                 progressBarRevenue.Value = progressValue;
                 TotalRevenue.Text = $"{totalRevenue:C}"; // Format as currency
-                EmpNo.Text = $"{employeeCount}";
+                EmpNo.Text = $"{employeeCount.EmpCount}";
+                EmpAct.Text = $"{employeeCount.ActCount}";
                 TenantNo.Text = $"{tenantCount}";
                 DueToday.Text = $"{TotalDueToday:C}";
                 OverdueRent.Text = $"{TotalOverdue:C}";
@@ -82,14 +84,18 @@ namespace WinFormsSampleApp1
                 NoRentedUnit.Text = $"{unitTotalRentedCount}";
                 NoAvlUnit.Text = $"{availableUnit}";
 
-                // Update the circular progress bar
-                circularProgressBar1.Maximum = unitTotalCount; // Set the maximum value
-                circularProgressBar1.Value = unitTotalRentedCount; // Set the current value
+                if(unitTotalCount > 0)
+                {
+                    // Update the circular progress bar
+                    circularProgressBar1.Maximum = unitTotalCount; // Set the maximum value
+                    circularProgressBar1.Value = unitTotalRentedCount; // Set the current value
+                }
+                
 
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading total revenue: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error loading: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
         }
@@ -243,10 +249,6 @@ namespace WinFormsSampleApp1
                     });
 
                     ActiveRentalsDataGridView.DataSource = activeRentals; // Bind data to the DataGridView
-                }
-                else
-                {
-                    MessageBox.Show("No active rentals found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)

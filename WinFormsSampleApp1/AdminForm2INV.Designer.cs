@@ -252,6 +252,7 @@
             // 
             // SearchBox
             // 
+            SearchBox.Font = new Font("Segoe UI", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
             SearchBox.Location = new Point(14, 12);
             SearchBox.MaximumSize = new Size(200, 200);
             SearchBox.MinimumSize = new Size(500, 40);

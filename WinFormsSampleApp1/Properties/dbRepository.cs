@@ -3,6 +3,7 @@ using System.Data;
 using MySql.Data.MySqlClient;
 using Org.BouncyCastle.Asn1.Cmp;
 using WinFormsSampleApp1.Properties.Models;
+using BCrypt.Net;
 
 namespace WinFormsSampleApp1.Properties
 {
@@ -10,6 +11,7 @@ namespace WinFormsSampleApp1.Properties
     {
         // Define the connection string
         private string ConnectionString = "Server=127.0.0.1;Port=3306;Database=RentaHALL2;Uid=root;Pwd=Eric@tripulca.com;";
+        private string _currentEmployeeEmail; // Track logged-in employee
 
         // Method to test the database connection
         public bool TestConnection()
@@ -77,14 +79,14 @@ namespace WinFormsSampleApp1.Properties
         }
 
         // Method to get the hashed password and role for an employee
-        public (string PasswordHash, string Role) GetEmployeeCredentials(string email)
+        public (string PasswordHash, string Role, string emp_status) GetEmployeeCredentials(string email)
         {
             try
             {
                 using (MySqlConnection conn = new MySqlConnection(ConnectionString))
                 {
                     conn.Open();
-                    string query = "SELECT emp_password, role FROM employee WHERE email = @email";
+                    string query = "SELECT emp_password, role, emp_status FROM employee WHERE email = @email";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@email", email);
@@ -93,9 +95,13 @@ namespace WinFormsSampleApp1.Properties
                         {
                             if (reader.Read())
                             {
+                                // Retrieve the hashed password, role, and status from the reader
                                 string passwordHash = reader.GetString("emp_password");
                                 string role = reader.GetString("role");
-                                return (passwordHash, role); // Return the hashed password and role
+                                string emp_status = reader.GetString("emp_status");
+
+                                // Return the hashed password, role, and status
+                                return (passwordHash, role, emp_status);
                             }
                         }
                     }
@@ -105,8 +111,232 @@ namespace WinFormsSampleApp1.Properties
             {
                 Console.WriteLine("Error retrieving employee credentials: " + ex.Message);
             }
-            return (null, null); // Return null if no match is found
+            return (null, null, null); // Return null if no match is found
         }
+
+        public void UpdateEmployeeActivityLog(string employeeId)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Query to update the login_time in the employee_activity_log table
+                    string query = @"
+                    UPDATE 
+                        employee
+                    SET 
+                        status = 'active'
+                    WHERE 
+                        emp_password = @employeeId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        // Add the employeeId parameter
+                        cmd.Parameters.AddWithValue("@employeeId", employeeId);
+
+                        // Execute the query
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        // Log the result for debugging
+                        Console.WriteLine($"Rows updated in employee: {rowsAffected}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error updating employee activity log: " + ex.Message);
+            }
+        }
+
+        public void SetCurrentEmployeeEmail(string email)
+        {
+            _currentEmployeeEmail = email;
+        }
+
+        // Get employee name (parameterless) using the tracked email
+        public string GetEmployeeName()
+        {
+            if (string.IsNullOrEmpty(_currentEmployeeEmail))
+            {
+                throw new InvalidOperationException("No employee is currently logged in.");
+            }
+            return GetEmployeeName(_currentEmployeeEmail);
+        }
+
+        public string GetEmployeeName(string email)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT full_name FROM employee WHERE email = @email";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@email", email);
+                        object result = cmd.ExecuteScalar();
+                        return result?.ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error retrieving employee name: " + ex.Message);
+                return null;
+            }
+        }
+
+
+        public bool IsOwnerTableEmpty()
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT COUNT(*) FROM owner";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        int count = Convert.ToInt32(cmd.ExecuteScalar());
+                        return count == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error checking owner table: " + ex.Message);
+                return true; // Assume empty if error occurs
+            }
+        }
+
+        // Insert a new owner into the database
+        public bool InsertOwner(string username, string passwordHash)
+        {
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (MySqlTransaction transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Insert the owner
+                        string ownerQuery = @"
+                            INSERT INTO owner (username, password_hash) 
+                            VALUES (@username, @passwordHash);
+                            SELECT LAST_INSERT_ID();"; // Get the new owner's ID
+
+                        int ownerId;
+                        using (MySqlCommand cmd = new MySqlCommand(ownerQuery, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@username", username);
+                            cmd.Parameters.AddWithValue("@passwordHash", passwordHash);
+                            ownerId = Convert.ToInt32(cmd.ExecuteScalar());
+                        }
+
+                        // 2. Insert the default business
+                        string businessQuery = @"
+                            INSERT INTO business (owner_id, name)
+                            VALUES (@ownerId, 'RentHall')";
+
+                        using (MySqlCommand cmd = new MySqlCommand(businessQuery, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@ownerId", ownerId);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        transaction.Commit();
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        Console.WriteLine("Error in transaction: " + ex.Message);
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // Get owner's ID by username
+        public int GetOwnerId(string username)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT id FROM owner WHERE username = @username";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@username", username);
+                        object result = cmd.ExecuteScalar();
+                        return result != null ? Convert.ToInt32(result) : -1;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error getting owner ID: " + ex.Message);
+                return -1;
+            }
+        }
+
+        // Insert security and answers
+        public bool InsertSecurityAnswers(int ownerId, int q1Id, string a1, int q2Id, string a2, int q3Id, string a3)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Insert all three answers in a transaction
+                    using (MySqlTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            InsertAnswer(conn, ownerId, q1Id, a1);
+                            InsertAnswer(conn, ownerId, q2Id, a2);
+                            InsertAnswer(conn, ownerId, q3Id, a3);
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving security answers: " + ex.Message);
+                return false;
+            }
+        }
+
+        private void InsertAnswer(MySqlConnection conn, int ownerId, int questionId, string answer)
+        {
+            string query = @"
+            INSERT INTO owner_security_questions 
+                (owner_id, question_id, answer_hash) 
+            VALUES 
+                (@ownerId, @questionId, @answerHash)
+            ON DUPLICATE KEY UPDATE answer_hash = @answerHash";
+
+            using (MySqlCommand cmd = new MySqlCommand(query, conn))
+            {
+                cmd.Parameters.AddWithValue("@ownerId", ownerId);
+                cmd.Parameters.AddWithValue("@questionId", questionId);
+                cmd.Parameters.AddWithValue("@answerHash", BCrypt.Net.BCrypt.HashPassword(answer));
+                cmd.ExecuteNonQuery();
+            }
+        }
+
 
         // Method to fetch active rentals
         public List<ActiveRentals> GetActiveRentals()
@@ -163,7 +393,7 @@ namespace WinFormsSampleApp1.Properties
                 using (MySqlConnection conn = new MySqlConnection(ConnectionString))
                 {
                     conn.Open();
-                    string query = "SELECT SUM(total_amount) AS TotalRevenue FROM payment";
+                    string query = "SELECT SUM(total_amount) AS TotalRevenue FROM payment WHERE payment_status = 'done'";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
                         object result = cmd.ExecuteScalar(); // ExecuteScalar returns a single value
@@ -213,22 +443,36 @@ namespace WinFormsSampleApp1.Properties
         }
 
         // Method to fetch the number of employees
-        public int GetEmpNo()
+        public (int EmpCount, int ActCount) GetEmpNo()
         {
             int empCount = 0;
+            int actCount = 0;
 
             try
             {
                 using (MySqlConnection conn = new MySqlConnection(ConnectionString))
                 {
                     conn.Open();
-                    string query = "SELECT COUNT(*) AS EmpCount FROM employee";
+
+                    // Query 1: Total employee count
+                    string query = "SELECT COUNT(*) AS EmpCount FROM employee WHERE emp_status = 1";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
-                        object result = cmd.ExecuteScalar(); // ExecuteScalar returns a single value
+                        object result = cmd.ExecuteScalar();
                         if (result != null && result != DBNull.Value)
                         {
-                            empCount = Convert.ToInt32(result); // Convert the result to an integer
+                            empCount = Convert.ToInt32(result);
+                        }
+                    }
+
+                    // Query 2: Active employee count
+                    string query1 = "SELECT COUNT(*) AS ActCount FROM employee WHERE status = 'active'";
+                    using (MySqlCommand cmd = new MySqlCommand(query1, conn))
+                    {
+                        object result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value)
+                        {
+                            actCount = Convert.ToInt32(result);
                         }
                     }
                 }
@@ -238,7 +482,7 @@ namespace WinFormsSampleApp1.Properties
                 Console.WriteLine("Error fetching employee count: " + ex.Message);
             }
 
-            return empCount;
+            return (EmpCount: empCount, ActCount: actCount); // Return as a tuple
         }
 
 
@@ -315,9 +559,9 @@ namespace WinFormsSampleApp1.Properties
                 {
                     conn.Open();
                     string query = @"
-                SELECT SUM(total_amount_due) AS TotalOverdueRent
-                FROM active_rentals
-                WHERE end_date < CURDATE();";
+                    SELECT SUM(total_amount_due) AS TotalOverdueRent
+                    FROM active_rentals
+                    WHERE end_date < CURDATE();";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
@@ -670,8 +914,9 @@ namespace WinFormsSampleApp1.Properties
         }
 
         // Method to insert into product table
-        public void InsertProduct(int productTypeId, string productName, string description, decimal basePrice, string priceUnit)
+        public int InsertProduct(int productTypeId, string productName, string description, decimal basePrice, string priceUnit)
         {
+            int product = -1;
             try
             {
                 using (MySqlConnection conn = new MySqlConnection(ConnectionString))
@@ -679,30 +924,30 @@ namespace WinFormsSampleApp1.Properties
                     conn.Open();
 
                     string query = @"
-                    INSERT INTO product (
-                        business_id,
-                        product_type_id,
-                        name,
-                        description,
-                        base_price,
-                        price_unit,
-                        total_quantity,
-                        available_quantity,
-                        rented_quantity,
-                        maintenance_quantity
-                    )
-                    VALUES (
-                        1, -- business_id is hardcoded as 1
-                        @product_type_id,
-                        @name,
-                        @description,
-                        @base_price,
-                        @price_unit,
-                        0, -- total_quantity starts at 0
-                        0, -- available_quantity starts at 0
-                        0, -- rented_quantity starts at 0
-                        0, -- maintenance_quantity starts at 0
-                    );";
+                        INSERT INTO product (
+                            business_id,
+                            product_type_id,
+                            name,
+                            description,
+                            base_price,
+                            price_unit,
+                            total_quantity,
+                            available_quantity,
+                            rented_quantity,
+                            maintenance_quantity
+                        )
+                        VALUES (
+                            1, -- business_id is hardcoded as 1
+                            @product_type_id,
+                            @name,
+                            @description,
+                            @base_price,
+                            @price_unit,
+                            0, -- total_quantity starts at 0
+                            0, -- available_quantity starts at 0
+                            0, -- rented_quantity starts at 0
+                            0 -- maintenance_quantity starts at 0
+                        );";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
@@ -713,12 +958,21 @@ namespace WinFormsSampleApp1.Properties
                         cmd.Parameters.AddWithValue("@price_unit", priceUnit);
                         cmd.ExecuteNonQuery();
                     }
+
+                    // Retrieve the last inserted ID
+                    string getLastInsertIdQuery = "SELECT LAST_INSERT_ID();";
+                    using (MySqlCommand lastInsertCmd = new MySqlCommand(getLastInsertIdQuery, conn))
+                    {
+                        product = Convert.ToInt32(lastInsertCmd.ExecuteScalar());
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Error inserting product: " + ex.Message);
             }
+
+            return product;
         }
 
         // Method to fetch all product types
@@ -781,8 +1035,9 @@ namespace WinFormsSampleApp1.Properties
         }
 
         // Method to insert a new inventory item
-        public void InsertInventoryItem(int productId, string serialNumber, string size)
+        public int InsertInventoryItem(int productId, string serialNumber, string size)
         {
+            int success = 1;
             try
             {
                 using (MySqlConnection conn = new MySqlConnection(ConnectionString))
@@ -805,7 +1060,10 @@ namespace WinFormsSampleApp1.Properties
             catch (Exception ex)
             {
                 Console.WriteLine("Error inserting inventory item: " + ex.Message);
+                success = -1;
             }
+
+            return success;
         }
 
         // Method to generate a serial number based on prdCode
@@ -877,9 +1135,8 @@ namespace WinFormsSampleApp1.Properties
                     conn.Open();
                     string query = @"
                         SELECT p.id 
-                        FROM product p
-                        JOIN product_type pt ON p.product_type_id = pt.id
-                        WHERE pt.prd_code = @prdCode";
+                        FROM product_type p
+                        WHERE p.prd_code = @prdCode";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
@@ -1075,7 +1332,594 @@ namespace WinFormsSampleApp1.Properties
         }
 
 
+        public DataTable GetTenantData(string searchTerm = null)
+        {
+            DataTable TenantTable = new DataTable();
 
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT * FROM tenant";
+
+                    // Add a WHERE clause if a search term is provided
+                    if (!string.IsNullOrEmpty(searchTerm))
+                    {
+                        query += " WHERE full_name LIKE @searchTerm OR government_id LIKE @searchTerm OR email LIKE @searchTerm OR mobile LIKE @searchTerm";
+                    }
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        if (!string.IsNullOrEmpty(searchTerm))
+                        {
+                            cmd.Parameters.AddWithValue("@searchTerm", $"%{searchTerm}%");
+                        }
+
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(TenantTable);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error fetching tenant data: " + ex.Message);
+            }
+
+            return TenantTable;
+        }
+
+        public bool UpdateTenant(int id, string newFullName, string newEmail, string newMobile)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                UPDATE tenant
+                SET full_name = @full_name, email = @email, mobile = @mobile
+                WHERE id = @id";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@full_name", newFullName);
+                        cmd.Parameters.AddWithValue("@email", newEmail);
+                        cmd.Parameters.AddWithValue("@mobile", newMobile);
+                        cmd.Parameters.AddWithValue("@id", id);
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0; // Return true if the update was successful
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error updating tenant: " + ex.Message);
+                return false;
+            }
+        }
+
+        public bool DeleteTenant(int id)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Step 1: Retrieve the id_copy_path for the tenant
+                    string idCopyPath = null;
+                    string selectQuery = "SELECT id_copy_path FROM tenant WHERE id = @id";
+
+                    using (MySqlCommand selectCmd = new MySqlCommand(selectQuery, conn))
+                    {
+                        selectCmd.Parameters.AddWithValue("@id", id);
+
+                        using (MySqlDataReader reader = selectCmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                idCopyPath = reader["id_copy_path"]?.ToString();
+                            }
+                        }
+                    }
+
+                    // Step 2: Delete the tenant record
+                    string deleteQuery = "DELETE FROM tenant WHERE id = @id";
+
+                    using (MySqlCommand deleteCmd = new MySqlCommand(deleteQuery, conn))
+                    {
+                        deleteCmd.Parameters.AddWithValue("@id", id);
+
+                        int rowsAffected = deleteCmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            // Step 3: Delete the image file from the file system if it exists
+                            if (!string.IsNullOrEmpty(idCopyPath) && File.Exists(idCopyPath))
+                            {
+                                try
+                                {
+                                    File.Delete(idCopyPath);
+                                    Console.WriteLine($"Deleted file: {idCopyPath}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine("Error deleting file: " + ex.Message);
+                                }
+                            }
+
+                            return true; // Return true if the delete was successful
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error deleting tenant: " + ex.Message);
+                return false;
+            }
+
+            return false;
+        }
+
+        public bool InsertTenant(string fullName, string governmentId, string idCopyPath, string email, string mobile)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                INSERT INTO tenant (full_name, government_id, id_copy_path, email, mobile)
+                VALUES (@full_name, @government_id, @id_copy_path, @email, @mobile)";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@full_name", fullName);
+                        cmd.Parameters.AddWithValue("@government_id", governmentId);
+                        cmd.Parameters.AddWithValue("@id_copy_path", idCopyPath);
+                        cmd.Parameters.AddWithValue("@email", email);
+                        cmd.Parameters.AddWithValue("@mobile", mobile);
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0; // Return true if the insertion was successful
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error inserting tenant: " + ex.Message);
+                return false;
+            }
+        }
+
+        public DataTable GetEmployeeData(string searchTerm = null)
+        {
+            DataTable employeeTable = new DataTable();
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = @"
+                    SELECT 
+                        id, 
+                        full_name, 
+                        role, 
+                        email, 
+                        emp_password,
+                        mobile, 
+                        business_id, 
+                        CAST(status AS CHAR) AS status, -- Ensure status is treated as a string
+                        created_at 
+                    FROM employee
+                    WHERE emp_status = '1'";
+
+                    if (!string.IsNullOrEmpty(searchTerm))
+                    {
+                        query += "AND (full_name LIKE @searchTerm OR email LIKE @searchTerm OR mobile LIKE @searchTerm OR role LIKE @searchTerm)";
+                    }
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        if (!string.IsNullOrEmpty(searchTerm))
+                        {
+                            cmd.Parameters.AddWithValue("@searchTerm", $"%{searchTerm}%");
+                        }
+
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(employeeTable);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error fetching employee data: " + ex.Message);
+            }
+            return employeeTable;
+        }
+
+
+        public bool UpdateEmployee(int id, string newFullName, string newEmail, string newMobile, string newPassword, string newRole)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    // Convert the password to a bcrypt hash
+                    string hashedPassword = BCrypt.Net.BCrypt.HashPassword(newPassword);
+
+                    conn.Open();
+                    string query = @"
+                        UPDATE employee
+                        SET full_name = @full_name, email = @email, mobile = @mobile, emp_password = @password, role = @role
+                        WHERE id = @id";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@full_name", newFullName);
+                        cmd.Parameters.AddWithValue("@email", newEmail);
+                        cmd.Parameters.AddWithValue("@mobile", newMobile);
+                        cmd.Parameters.AddWithValue("@password", hashedPassword);
+                        cmd.Parameters.AddWithValue("@role", newRole);
+                        cmd.Parameters.AddWithValue("@id", id);
+                        
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0; // Return true if the update was successful
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error updating tenant: " + ex.Message);
+                return false;
+            }
+        }
+
+        public bool DeleteEmployee(int id)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Step 1: Delete the employee record
+                    string deleteQuery = "UPDATE employee SET emp_status = '0' WHERE id = @id";
+
+                    using (MySqlCommand deleteCmd = new MySqlCommand(deleteQuery, conn))
+                    {
+                        deleteCmd.Parameters.AddWithValue("@id", id);
+
+                        int rowsAffected = deleteCmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            return true; // Return true if the delete was successful
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error deleting Employee: " + ex.Message);
+                return false;
+            }
+
+            return false;
+        }
+
+        public bool InsertEmployee(string fullName, string email, string mobile, string password, string role)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    // Convert the password to a bcrypt hash
+                    string hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
+
+                    int business_id = 1;
+                    conn.Open();
+                    string query = @"
+                        INSERT INTO employee (full_name, role, email, emp_password, mobile, business_id)
+                        VALUES (@full_name, @role, @email, @password, @mobile, @business_id)";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@full_name", fullName);
+                        cmd.Parameters.AddWithValue("@password", hashedPassword);
+                        cmd.Parameters.AddWithValue("@role", role);
+                        cmd.Parameters.AddWithValue("@business_id", business_id);
+                        cmd.Parameters.AddWithValue("@email", email);
+                        cmd.Parameters.AddWithValue("@mobile", mobile);
+
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0; // Return true if the insertion was successful
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error inserting employee: " + ex.Message);
+                return false;
+            }
+        }
+
+        public DataTable GetRentalAgreement_withname(string searchTerm = null)
+        {
+            DataTable rentalAgreementTable = new DataTable();
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Query to fetch data from the rental_agreement_withname view
+                    string query = @"
+                SELECT 
+                    id, 
+                    status, 
+                    agreed_price, 
+                    tenant_full_name, 
+                    handled_by_employee_full_name
+                FROM 
+                    rental_agreement_withname";
+
+                    if (!string.IsNullOrEmpty(searchTerm))
+                    {
+                        query += " WHERE id LIKE @searchTerm OR status LIKE @searchTerm OR agreed_price LIKE @searchTerm OR tenant_full_name LIKE @searchTerm OR handled_by_employee_full_name LIKE @searchTerm";
+                    }
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        if (!string.IsNullOrEmpty(searchTerm))
+                        {
+                            cmd.Parameters.AddWithValue("@searchTerm", $"%{searchTerm}%");
+                        }
+
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(rentalAgreementTable);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error fetching rental agreement data: " + ex.Message);
+            }
+            return rentalAgreementTable;
+        }
+
+        public DataTable GetPayment_withname(string rentalAgreementId = null)
+        {
+            DataTable rentalPaymentTable = new DataTable();
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Query to fetch data from the payment table with employee full name
+                    string query = @"
+                    SELECT 
+                        p.*,
+                        e.full_name AS received_by_employee_name
+                    FROM 
+                        payment p
+                    LEFT JOIN 
+                        employee e ON p.received_by_employee_id = e.id";
+
+                    // Add a WHERE clause if a rentalAgreementId is provided
+                    if (!string.IsNullOrEmpty(rentalAgreementId))
+                    {
+                        query += " WHERE p.rental_agreement_id = @rentalAgreementId";
+                    }
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        if (!string.IsNullOrEmpty(rentalAgreementId))
+                        {
+                            cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+                        }
+
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(rentalPaymentTable);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error fetching payment data: " + ex.Message);
+            }
+            return rentalPaymentTable;
+        }
+
+        public DataTable GetRental_Fee(string rentalAgreementId = null)
+        {
+            DataTable rentalFeeTable = new DataTable();
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Query to fetch data from the payment table with employee full name
+                    string query = @"SELECT * FROM fee";
+
+                    // Add a WHERE clause if a rentalAgreementId is provided
+                    if (!string.IsNullOrEmpty(rentalAgreementId))
+                    {
+                        query += " WHERE rental_agreement_id = @rentalAgreementId";
+                    }
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        if (!string.IsNullOrEmpty(rentalAgreementId))
+                        {
+                            cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+                        }
+
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(rentalFeeTable);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error fetching fee data: " + ex.Message);
+            }
+            return rentalFeeTable;
+        }
+
+
+        public bool IsUsernameInOwnerTable(string username)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT COUNT(*) FROM owner WHERE username = @username";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@username", username);
+                        long count = (long)cmd.ExecuteScalar();
+                        return count > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error checking owner table: " + ex.Message);
+                return false;
+            }
+        }
+
+        public bool IsUsernameInEmployeeTable(string email)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT COUNT(*) FROM employee WHERE email = @email";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@email", email);
+                        long count = (long)cmd.ExecuteScalar();
+                        return count > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error checking employee table: " + ex.Message);
+                return false;
+            }
+        }
+
+        public int GetSecurityQuestionCount(string username)
+        {
+            try
+            {
+                int ownerId = GetOwnerId(username);
+                if (ownerId == -1) return 0;
+
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "SELECT COUNT(*) FROM owner_security_questions WHERE owner_id = @ownerId";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ownerId", ownerId);
+                        return Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error getting security question count: " + ex.Message);
+                return 0;
+            }
+        }
+
+        public bool VerifySecurityAnswers(int ownerId, string answer1, string answer2, string answer3)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    // Get all answers for this owner
+                    string query = "SELECT question_id, answer_hash FROM owner_security_questions WHERE owner_id = @ownerId";
+                    Dictionary<int, string> correctAnswers = new Dictionary<int, string>();
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ownerId", ownerId);
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                correctAnswers.Add(
+                                    reader.GetInt32("question_id"),
+                                    reader.GetString("answer_hash")
+                                );
+                            }
+                        }
+                    }
+
+                    // Verify each answer
+                    bool answer1Correct = BCrypt.Net.BCrypt.Verify(answer1, correctAnswers[1]);
+                    bool answer2Correct = BCrypt.Net.BCrypt.Verify(answer2, correctAnswers[2]);
+                    bool answer3Correct = BCrypt.Net.BCrypt.Verify(answer3, correctAnswers[3]);
+
+                    return answer1Correct && answer2Correct && answer3Correct;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error verifying security answers: " + ex.Message);
+                return false;
+            }
+        }
+
+        public bool UpdateOwnerPassword(string username, string newPasswordHash)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    string query = "UPDATE owner SET password_hash = @passwordHash WHERE username = @username";
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@passwordHash", newPasswordHash);
+                        cmd.Parameters.AddWithValue("@username", username);
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error updating password: " + ex.Message);
+                return false;
+            }
+        }
 
     }
 }

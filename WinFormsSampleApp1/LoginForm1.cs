@@ -16,61 +16,77 @@ namespace WinFormsSampleApp1
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            // Check if the owner table is empty
+            bool isOwnerTableEmpty = dbRepo.IsOwnerTableEmpty();
 
+            if (isOwnerTableEmpty)
+            {
+                Login.Text = "Sign Up"; // Change button text to "Sign Up"
+                createOwnerAccount.Text = "Create Admin Account";
+            }
         }
 
         private void Log_In_Click(object sender, EventArgs e)
         {
-            // Retrieve the username and password from the text boxes
-            string username = username_text_box.Text.Trim(); // Trim removes leading/trailing whitespace
+            string username = username_text_box.Text.Trim();
             string password = password_text_box.Text.Trim();
 
-            // Check if the username is empty
-            if (string.IsNullOrEmpty(username))
+            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
-                MessageBox.Show("Error: Username cannot be empty.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; // Stop further execution
+                MessageBox.Show("Username and password cannot be empty.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
-            // Check if the password is empty
-            if (string.IsNullOrEmpty(password))
+            bool isOwnerTableEmpty = dbRepo.IsOwnerTableEmpty();
+
+            // If owner table is empty, treat this as a sign-up
+            if (isOwnerTableEmpty)
             {
-                MessageBox.Show("Error: Password cannot be empty.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; // Stop further execution
-            }
+                // Hash the password
+                string passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
 
-            // Check credentials in the owner table
-            string ownerPasswordHash = dbRepo.GetOwnerPasswordHash(username);
-            if (!string.IsNullOrEmpty(ownerPasswordHash) && BCrypt.Net.BCrypt.Verify(password, ownerPasswordHash))
+                // Insert the new owner
+                bool success = dbRepo.InsertOwner(username, passwordHash);
+
+                if (success)
+                {
+                    // Open the security questions form
+                    SecQuestions secQuestionsForm = new SecQuestions(username);
+                    secQuestionsForm.Show();
+                    this.Hide();
+                }
+                else
+                {
+                    MessageBox.Show("Failed to create owner account.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
             {
-                MessageBox.Show("Welcome Admin", "Login Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Existing login logic (your original code)
+                string ownerPasswordHash = dbRepo.GetOwnerPasswordHash(username);
+                if (!string.IsNullOrEmpty(ownerPasswordHash) && BCrypt.Net.BCrypt.Verify(password, ownerPasswordHash))
+                {
+                    AdminForm1 adminForm = new AdminForm1();
+                    adminForm.Show();
+                    this.Hide();
+                    return;
+                }
 
-                // Navigate to AdminForm1
-                AdminForm1 adminForm = new AdminForm1();
-                adminForm.Show();
+                // Check employee login 
+                var (employeePasswordHash, role, emp_status) = dbRepo.GetEmployeeCredentials(username);
+                if (!string.IsNullOrEmpty(employeePasswordHash) && BCrypt.Net.BCrypt.Verify(password, employeePasswordHash) && (emp_status != "0"))
+                {
+                    // Track the logged-in employee
+                    dbRepo.SetCurrentEmployeeEmail(username);
+                    dbRepo.UpdateEmployeeActivityLog(employeePasswordHash);
+                    EmployeeForm1 employeeForm = new EmployeeForm1();
+                    employeeForm.Show();
+                    this.Hide();
+                    return;
+                }
 
-                // Optionally, hide the current login form
-                this.Hide();
-                return; // Exit the method after successful login
+                MessageBox.Show("Invalid credentials.", "Login Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            // Check credentials in the employee table
-            var (employeePasswordHash, role) = dbRepo.GetEmployeeCredentials(username);
-            if (!string.IsNullOrEmpty(employeePasswordHash) && BCrypt.Net.BCrypt.Verify(password, employeePasswordHash))
-            {
-                MessageBox.Show($"Welcome! Your role is {role}", "Login Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                // Navigate to AdminForm1
-                AdminForm1 adminForm = new AdminForm1();
-                adminForm.Show();
-
-                // Optionally, hide the current login form
-                this.Hide();
-                return; // Exit the method after successful login
-            }
-
-            // If no match is found in either table
-            MessageBox.Show("Credentials mismatch", "Login Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void label2_Click(object sender, EventArgs e)
@@ -81,6 +97,45 @@ namespace WinFormsSampleApp1
         private void pictureBox2_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void label2forgot_Click(object sender, EventArgs e)
+        {
+            string username = username_text_box.Text.Trim();
+
+            if (string.IsNullOrEmpty(username))
+            {
+                MessageBox.Show("Please enter your username first.", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Check if username exists in owner table
+            if (dbRepo.IsUsernameInOwnerTable(username))
+            {
+                // Check if security questions are set up (3 questions exist)
+                if (dbRepo.GetSecurityQuestionCount(username) == 3)
+                {
+                    SecQuestions secForm = new SecQuestions(username, true); // true = password reset mode
+                    secForm.Show();
+                }
+                else
+                {
+                    MessageBox.Show("Security questions not set up.", "Error",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            // Check if username exists in employee table
+            else if (dbRepo.IsUsernameInEmployeeTable(username))
+            {
+                MessageBox.Show("Please contact administrator to reset your password.", "Information",
+                              MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("Username not found.", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
