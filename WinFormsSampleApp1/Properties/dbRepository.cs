@@ -1663,14 +1663,14 @@ namespace WinFormsSampleApp1.Properties
 
                     // Query to fetch data from the rental_agreement_withname view
                     string query = @"
-                SELECT 
-                    id, 
-                    status, 
-                    agreed_price, 
-                    tenant_full_name, 
-                    handled_by_employee_full_name
-                FROM 
-                    rental_agreement_withname";
+                        SELECT 
+                            id, 
+                            status, 
+                            agreed_price, 
+                            tenant_full_name, 
+                            handled_by_employee_full_name
+                        FROM 
+                            rental_agreement_withname";
 
                     if (!string.IsNullOrEmpty(searchTerm))
                     {
@@ -1720,7 +1720,7 @@ namespace WinFormsSampleApp1.Properties
                     // Add a WHERE clause if a rentalAgreementId is provided
                     if (!string.IsNullOrEmpty(rentalAgreementId))
                     {
-                        query += " WHERE p.rental_agreement_id = @rentalAgreementId";
+                        query += " WHERE p.id = @rentalAgreementId";
                     }
 
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
@@ -2011,18 +2011,6 @@ namespace WinFormsSampleApp1.Properties
                                 employeeId = Convert.ToInt32(result);
                             }
 
-                            MessageBox.Show($"Attempting to make rental agreement\r\n" +
-                              $"Product ID: {inventory}\r\n" +
-                              $"Employee ID: {employeeId}\r\n" +
-                              $"priceUnit: {price}\r\n" +
-                              $"duration: {duration}\r\n" +
-                              $"serialNumber: {serialNum}\r\n" +
-                              $"condition: {condition}\r\n" +
-                              $"Tenant ID: {tenant}",
-                              "Tenant ID: {tenantId}",
-                              MessageBoxButtons.OK,
-                              MessageBoxIcon.Information);
-
                             // 2. Insert into rental_agreement
                             string insertAgreementQuery = @"INSERT INTO rental_agreement 
                                         (tenant_id, status, agreed_price, duration, handled_by_employee_id)
@@ -2078,6 +2066,64 @@ namespace WinFormsSampleApp1.Properties
             catch (Exception ex)
             {
                 Console.WriteLine("Error renting product: " + ex.Message);
+                return false;
+            }
+        }
+
+        public bool InsertFee(int rentalAgreementId, string feeType, decimal amount, string description)
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+                    using (var transaction = conn.BeginTransaction()) // Add transaction
+                    {
+                        try
+                        {
+                            // Verify rental agreement exists first
+                            string checkQuery = "SELECT COUNT(*) FROM rental_agreement WHERE id = @rentalAgreementId";
+                            using (MySqlCommand checkCmd = new MySqlCommand(checkQuery, conn, transaction))
+                            {
+                                checkCmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+                                int exists = Convert.ToInt32(checkCmd.ExecuteScalar());
+
+                                if (exists == 0)
+                                {
+                                    MessageBox.Show($"Rental agreement {rentalAgreementId} doesn't exist!");
+                                    return false;
+                                }
+                            }
+
+                            string query = @"INSERT INTO fee 
+                            (rental_agreement_id, fee_type, amount, description) 
+                            VALUES 
+                            (@rentalAgreementId, @feeType, @amount, @description)";
+
+                            using (MySqlCommand cmd = new MySqlCommand(query, conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+                                cmd.Parameters.AddWithValue("@feeType", feeType);
+                                cmd.Parameters.AddWithValue("@amount", amount);
+                                cmd.Parameters.AddWithValue("@description", description);
+
+                                int rowsAffected = cmd.ExecuteNonQuery();
+                                transaction.Commit(); // Explicit commit
+                                return rowsAffected > 0;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            MessageBox.Show($"Failed to insert fee: {ex.Message}", "Error");
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Database connection failed: {ex.Message}", "Error");
                 return false;
             }
         }

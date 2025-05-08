@@ -283,7 +283,7 @@ namespace WinFormsSampleApp1.Properties
             // Load tenant data with the search term
             LoadTenantData(searchTerm);
         }
-
+        
         private void InsertTenantbutton_Click(object sender, EventArgs e)
         {
             try
