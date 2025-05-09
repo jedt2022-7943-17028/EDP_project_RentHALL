@@ -54,6 +54,10 @@
             panel4 = new Panel();
             dataGridViewFee = new DataGridView();
             label3 = new Label();
+            panel6 = new Panel();
+            dataGridViewpaid = new DataGridView();
+            label4 = new Label();
+            dataGridView2 = new DataGridView();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             panel2.SuspendLayout();
@@ -66,6 +70,9 @@
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
             panel4.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridViewFee).BeginInit();
+            panel6.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewpaid).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             SuspendLayout();
             // 
             // RENTALSbutton
@@ -217,7 +224,7 @@
             panel3.Controls.Add(dataGridViewrental_agreement_withname);
             panel3.Location = new Point(234, 400);
             panel3.Name = "panel3";
-            panel3.Size = new Size(799, 260);
+            panel3.Size = new Size(362, 260);
             panel3.TabIndex = 56;
             // 
             // dataGridViewpayment
@@ -226,7 +233,7 @@
             dataGridViewpayment.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewpayment.Location = new Point(0, 28);
             dataGridViewpayment.Name = "dataGridViewpayment";
-            dataGridViewpayment.Size = new Size(798, 232);
+            dataGridViewpayment.Size = new Size(362, 232);
             dataGridViewpayment.TabIndex = 1;
             // 
             // label2
@@ -235,9 +242,9 @@
             label2.Font = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
             label2.Location = new Point(1, 1);
             label2.Name = "label2";
-            label2.Size = new Size(122, 30);
+            label2.Size = new Size(161, 30);
             label2.TabIndex = 19;
-            label2.Text = "Transaction";
+            label2.Text = "Unpaid Balance";
             // 
             // dataGridViewrental_agreement_withname
             // 
@@ -305,7 +312,7 @@
             panel4.Controls.Add(label3);
             panel4.Location = new Point(1050, 167);
             panel4.Name = "panel4";
-            panel4.Size = new Size(287, 500);
+            panel4.Size = new Size(287, 493);
             panel4.TabIndex = 58;
             // 
             // dataGridViewFee
@@ -314,7 +321,7 @@
             dataGridViewFee.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dataGridViewFee.Location = new Point(0, 34);
             dataGridViewFee.Name = "dataGridViewFee";
-            dataGridViewFee.Size = new Size(287, 427);
+            dataGridViewFee.Size = new Size(287, 459);
             dataGridViewFee.TabIndex = 21;
             // 
             // label3
@@ -327,11 +334,53 @@
             label3.TabIndex = 20;
             label3.Text = "Fee";
             // 
+            // panel6
+            // 
+            panel6.BackColor = SystemColors.Window;
+            panel6.Controls.Add(dataGridViewpaid);
+            panel6.Controls.Add(label4);
+            panel6.Controls.Add(dataGridView2);
+            panel6.Location = new Point(616, 400);
+            panel6.Name = "panel6";
+            panel6.Size = new Size(417, 260);
+            panel6.TabIndex = 57;
+            panel6.Paint += panel6_Paint;
+            // 
+            // dataGridViewpaid
+            // 
+            dataGridViewpaid.BackgroundColor = SystemColors.Window;
+            dataGridViewpaid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewpaid.Location = new Point(0, 28);
+            dataGridViewpaid.Name = "dataGridViewpaid";
+            dataGridViewpaid.Size = new Size(417, 232);
+            dataGridViewpaid.TabIndex = 1;
+            dataGridViewpaid.CellContentClick += dataGridViewpaid_CellContentClick;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.Font = new Font("Segoe UI Semibold", 15.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label4.Location = new Point(1, 1);
+            label4.Name = "label4";
+            label4.Size = new Size(132, 30);
+            label4.TabIndex = 19;
+            label4.Text = "Paid Balance";
+            // 
+            // dataGridView2
+            // 
+            dataGridView2.BackgroundColor = SystemColors.Window;
+            dataGridView2.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridView2.Location = new Point(816, -240);
+            dataGridView2.Name = "dataGridView2";
+            dataGridView2.Size = new Size(287, 500);
+            dataGridView2.TabIndex = 2;
+            // 
             // EmployeeForm4TANS
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1354, 691);
+            Controls.Add(panel6);
             Controls.Add(panel4);
             Controls.Add(panel5);
             Controls.Add(panel3);
@@ -368,6 +417,10 @@
             panel4.ResumeLayout(false);
             panel4.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridViewFee).EndInit();
+            panel6.ResumeLayout(false);
+            panel6.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridViewpaid).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
             ResumeLayout(false);
         }
 
@@ -398,5 +451,9 @@
         private Panel panel4;
         private DataGridView dataGridViewFee;
         public Label label3;
+        private Panel panel6;
+        private DataGridView dataGridViewpaid;
+        public Label label4;
+        private DataGridView dataGridView2;
     }
 }

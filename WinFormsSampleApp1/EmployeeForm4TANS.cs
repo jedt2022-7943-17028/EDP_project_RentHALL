@@ -24,6 +24,7 @@ namespace WinFormsSampleApp1
             LoaddataRental_agreement_details_withname();
             LoaddataRental_payment_withname();
             LoaddataRental_fee();
+            LoaddataRental_paid();
 
             dataGridrental_agreement_details_withname.CellClick += DataGridrental_agreement_details_withname_CellClick;
             dataGridViewpayment.CellClick += DataGridViewpayment_CellClick;
@@ -178,30 +179,99 @@ namespace WinFormsSampleApp1
         {
             try
             {
-                // Fetch payment data based on the provided rentalAgreementId
-                DataTable payments = dbRepo.GetPayment_withname(rentalAgreementId);
+                // Fetch all payment data
+                DataTable allPayments = dbRepo.GetPayment_withname(rentalAgreementId);
 
-                // Clear the existing data source
-                dataGridViewpayment.DataSource = null;
+                // Filter to only incomplete payments
+                DataTable incompletePayments = allPayments.Clone();
+                foreach (DataRow row in allPayments.Rows)
+                {
+                    if (!row["payment_status"].ToString().Equals("done", StringComparison.OrdinalIgnoreCase))
+                    {
+                        incompletePayments.ImportRow(row);
+                    }
+                }
 
-                // Bind the new data to the DataGridView
-                dataGridViewpayment.DataSource = payments;
+                // Clear and bind the filtered data
+                dataGridViewpayment.DataSource = incompletePayments;
+
+                // Hide unnecessary columns
                 dataGridViewpayment.Columns["rental_agreement_id"].Visible = false;
                 dataGridViewpayment.Columns["received_by_employee_id"].Visible = false;
-                // Force the DataGridView to refresh
-                dataGridViewpayment.Refresh();
+                dataGridViewpayment.Columns["payment_date"].Visible = false;
+                dataGridViewpayment.Columns["payment_method"].Visible = false;
+                dataGridViewpayment.Columns["payment_status"].Visible = false;
+                dataGridViewpayment.Columns["reference_number"].Visible = false;
+                dataGridViewpayment.Columns["received_by_employee_name"].Visible = false;
 
-
-
-                // Handle empty results gracefully
-                if (payments.Rows.Count == 0)
+                // Add Pay button if needed
+                if (!dataGridViewpayment.Columns.Contains("PAY"))
                 {
-                    MessageBox.Show("No matching payments found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DataGridViewButtonColumn payColumn = new DataGridViewButtonColumn
+                    {
+                        Name = "PAY",
+                        HeaderText = "Action",
+                        Text = "Pay",
+                        UseColumnTextForButtonValue = true,
+                        DefaultCellStyle = new DataGridViewCellStyle
+                        {
+                            BackColor = Color.LightGreen,
+                            Alignment = DataGridViewContentAlignment.MiddleCenter
+                        }
+                    };
+                    dataGridViewpayment.Columns.Add(payColumn);
+                }
+
+                // Handle empty results
+                if (incompletePayments.Rows.Count == 0)
+                {
+                    MessageBox.Show("No incomplete payments found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading payment data: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error loading payment data: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void LoaddataRental_paid(string rentalAgreementId = null)
+        {
+            try
+            {
+                // Fetch all payment data
+                DataTable allPayments = dbRepo.GetPayment_withname(rentalAgreementId);
+
+                // Filter to only incomplete payments
+                DataTable incompletePayments = allPayments.Clone();
+                foreach (DataRow row in allPayments.Rows)
+                {
+                    if (!row["payment_status"].ToString().Equals("pending", StringComparison.OrdinalIgnoreCase))
+                    {
+                        incompletePayments.ImportRow(row);
+                    }
+                }
+
+                // Clear and bind the filtered data
+                dataGridViewpaid.DataSource = incompletePayments;
+
+                // Hide unnecessary columns
+                dataGridViewpaid.Columns["rental_agreement_id"].Visible = false;
+                dataGridViewpaid.Columns["received_by_employee_id"].Visible = false;
+                dataGridViewpaid.Columns["payment_method"].Visible = false;
+                dataGridViewpaid.Columns["payment_status"].Visible = false;
+                dataGridViewpaid.Columns["reference_number"].Visible = false;
+
+                // Handle empty results
+                if (incompletePayments.Rows.Count == 0)
+                {
+                    MessageBox.Show("No incomplete payments found.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading payment data: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -257,12 +327,14 @@ namespace WinFormsSampleApp1
                         LoaddataRental_fee(rentalAgreementId);
                         LoaddataRental_agreement_details_withname(rentalAgreementId);
                         LoaddataRental_payment_withname(rentalAgreementId);
+                        LoaddataRental_paid(rentalAgreementId);
                     }
                     else
                     {
                         LoaddataRental_fee();
                         LoaddataRental_agreement_details_withname();
                         LoaddataRental_payment_withname();
+                        LoaddataRental_paid();
                     }
                 }
             }
@@ -276,6 +348,21 @@ namespace WinFormsSampleApp1
         {
             try
             {
+                // First check if it's a button column click
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+                {
+                    var columnName = dataGridViewpayment.Columns[e.ColumnIndex].Name;
+
+                    if (columnName == "PAY")
+                    {
+                        // Get the rental agreement ID
+                        var row = dataGridViewpayment.Rows[e.RowIndex];
+                        int agreementId = Convert.ToInt32(row.Cells["rental_agreement_id"].Value);
+                        FeePaymentForm(agreementId);
+                        return;
+                    }
+                }
+
                 // Ensure the click is on a valid row (not the header)
                 if (e.RowIndex >= 0)
                 {
@@ -291,17 +378,15 @@ namespace WinFormsSampleApp1
                         LoaddataRental_fee(rentalAgreementId);
                         LoaddataRental_agreement_details_withname(rentalAgreementId);
                         LoaddataRental_payment_withname(rentalAgreementId);
+                        LoaddataRental_paid(rentalAgreementId);
                     }
                     else
                     {
                         LoaddataRental_fee();
                         LoaddataRental_agreement_details_withname();
                         LoaddataRental_payment_withname();
+                        LoaddataRental_paid();
                     }
-                }
-                else if (e.RowIndex < 0)
-                {
-
                 }
             }
             catch (Exception ex)
@@ -327,6 +412,33 @@ namespace WinFormsSampleApp1
                         AddFeeForAgreement(agreementId);
                         return;
                     }
+
+                    if (columnName == "Terminate")
+                    {
+                        // Get the rental agreement ID
+                        var row = dataGridrental_agreement_details_withname.Rows[e.RowIndex];
+                        int agreementId = Convert.ToInt32(row.Cells["id"].Value);
+                        TerminateAgreement(agreementId);
+                        return;
+                    }
+
+                    if (columnName == "Print")
+                    {
+                        var row = dataGridrental_agreement_details_withname.Rows[e.RowIndex];
+                        int agreementId = Convert.ToInt32(row.Cells["id"].Value);
+
+                        SaveFileDialog saveDialog = new SaveFileDialog();
+                        saveDialog.Filter = "Excel File (*.xlsx)|*.xlsx";
+                        saveDialog.FileName = $"Rental_Transaction_{agreementId}.xlsx";
+                        saveDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+                        if (saveDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            bool success = dbRepo.ExportTransactionHistoryToExcel(agreementId, saveDialog.FileName);
+                        }
+
+                        return;
+                    }
                 }
 
                 // Ensure the click is on a valid row (not the header)
@@ -344,12 +456,14 @@ namespace WinFormsSampleApp1
                         LoaddataRental_fee(rentalAgreementId);
                         LoaddataRental_agreement_details_withname(rentalAgreementId);
                         LoaddataRental_payment_withname(rentalAgreementId);
+                        LoaddataRental_paid(rentalAgreementId);
                     }
                     else
                     {
                         LoaddataRental_fee();
                         LoaddataRental_agreement_details_withname();
                         LoaddataRental_payment_withname();
+                        LoaddataRental_paid();
                     }
                 }
             }
@@ -432,6 +546,227 @@ namespace WinFormsSampleApp1
             }
         }
 
+        private void FeePaymentForm(int rentalAgreementId)
+        {
+            try
+            {
+                DataTable fees = dbRepo.GetFeesByRentalAgreement(rentalAgreementId);
+                if (fees.Rows.Count == 0)
+                {
+                    MessageBox.Show("No unpaid fees found.", "No Fees", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
 
+                decimal totalDue = fees.AsEnumerable().Sum(row => row.Field<decimal>("amount"));
+                List<int> feeIds = fees.AsEnumerable().Select(row => row.Field<int>("id")).ToList();
+
+                DialogResult confirmResult = MessageBox.Show(
+                    $"Total amount due: {totalDue:C}\n\nDo you want to proceed with this payment?",
+                    "Confirm Payment",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (confirmResult != DialogResult.Yes)
+                    return;
+
+                // Ask for payment method and reference number
+                if (!ShowPaymentInputDialog(out string paymentMethod, out string referenceNumber))
+                    return;
+
+                // Process payment (now accepts employeeEmail as parameter)
+                bool success = dbRepo.ProcessPayment(
+                    rentalAgreementId,
+                    feeIds,
+                    totalDue,
+                    _employeeEmail,
+                    paymentMethod,
+                    referenceNumber);
+
+                if (success)
+                {
+                    MessageBox.Show("Payment processed successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoaddataRental_fee(rentalAgreementId.ToString());
+                    LoaddataRental_payment_withname(rentalAgreementId.ToString());
+
+                    // Call Renewal Method
+                    RenewRentalAgreement(rentalAgreementId);
+
+                    // Refresh progress bar and revenue label
+                    decimal totalRevenue = dbRepo.GetTotalRevenue();
+                    decimal maxRevenue = dbRepo.GetMaxRevenue();
+                    int progressValue = maxRevenue > 0 ? (int)((totalRevenue / maxRevenue) * 100) : 0;
+                    if (progressValue > 100) progressValue = 100;
+                    progressBarRevenue.Value = progressValue;
+                    TotalRevenue.Text = $"{totalRevenue:C}";
+                }
+                else
+                {
+                    MessageBox.Show("Failed to process payment. Amount mismatch.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        private bool ShowPaymentInputDialog(out string paymentMethod, out string referenceNumber)
+        {
+            paymentMethod = "";
+            referenceNumber = "";
+
+            // Create temporary form to hold input controls
+            using (Form inputForm = new Form())
+            {
+                inputForm.Text = "Enter Payment Details";
+                inputForm.StartPosition = FormStartPosition.CenterParent;
+                inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                inputForm.MaximizeBox = false;
+                inputForm.MinimizeBox = false;
+                inputForm.ClientSize = new Size(350, 180);
+
+                Label lblMethod = new Label() { Text = "Payment Method:", Left = 20, Top = 20 };
+                ComboBox cmbMethod = new ComboBox()
+                {
+                    Left = 130,
+                    Top = 17,
+                    Width = 200,
+                    Items = { "cash", "credit_card", "bank_transfer", "check", "other" },
+                    SelectedIndex = 0
+                };
+
+                Label lblRef = new Label() { Text = "Reference No.:", Left = 20, Top = 60 };
+                TextBox txtRef = new TextBox() { Left = 130, Top = 57, Width = 200 };
+
+                Button btnOk = new Button() { Text = "OK", Left = 100, Top = 120, Width = 75 };
+                Button btnCancel = new Button() { Text = "Cancel", Left = 190, Top = 120, Width = 75 };
+
+                inputForm.Controls.AddRange(new Control[] { lblMethod, cmbMethod, lblRef, txtRef, btnOk, btnCancel });
+
+                btnOk.DialogResult = DialogResult.OK;
+                btnCancel.DialogResult = DialogResult.Cancel;
+
+                inputForm.AcceptButton = btnOk;
+                inputForm.CancelButton = btnCancel;
+
+                var result = inputForm.ShowDialog();
+
+                if (result == DialogResult.OK)
+                {
+                    paymentMethod = cmbMethod.SelectedItem?.ToString();
+                    referenceNumber = txtRef.Text.Trim();
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+
+        private void RenewRentalAgreement(int rentalAgreementId)
+        {
+            try
+            {
+                var result = MessageBox.Show("Do you want to renew this rental agreement?",
+                                             "Confirm Renewal",
+                                             MessageBoxButtons.YesNoCancel,
+                                             MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    // Proceed with renewal
+                    bool success = dbRepo.RenewRentalAgreement(rentalAgreementId);
+
+                    if (!success)
+                    {
+                        MessageBox.Show("Failed to renew agreement.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    MessageBox.Show("Rental agreement renewed successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else if (result == DialogResult.No)
+                {
+                    // Ask if they want to mark agreement as complete
+                    var confirmComplete = MessageBox.Show(
+                        "Mark this agreement as complete?",
+                        "Set Agreement Status",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (confirmComplete == DialogResult.Yes)
+                    {
+                        // Call repository to update agreement status to 'complete'
+                        bool success = dbRepo.UpdateRentalAgreementStatusToComplete(rentalAgreementId);
+
+                        if (!success)
+                        {
+                            MessageBox.Show("Failed to update agreement status.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        MessageBox.Show("Rental agreement marked as complete.", "Status Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                // If Cancel is clicked, do nothing
+
+                // Refresh UI
+                LoaddataRental_agreement_details_withname(rentalAgreementId.ToString());
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred during renewal: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        private void TerminateAgreement(int rentalAgreementId)
+        {
+            try
+            {
+
+                // Ask if they want to terminate the aggreement
+                var confirmComplete = MessageBox.Show(
+                    "Terminate this agreement??",
+                    "Terminate",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (confirmComplete == DialogResult.Yes)
+                {
+                    // Call repository to update agreement status to 'complete'
+                    bool success = dbRepo.TerminateRentalAgreement(rentalAgreementId);
+
+                    if (!success)
+                    {
+                        MessageBox.Show("Failed to terminate agreement.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    MessageBox.Show("Rental agreement marked terminated.", "Status Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                // If Cancel is clicked, do nothing
+
+                // Refresh UI
+                LoaddataRental_agreement_details_withname(rentalAgreementId.ToString());
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred during renewal: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void dataGridViewpaid_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+
+        private void panel6_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
     }
 }

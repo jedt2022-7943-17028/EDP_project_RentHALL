@@ -28,6 +28,7 @@ namespace WinFormsSampleApp1.Properties
         {
             LoadInventoryData();
             LoadProductData();
+            LoadRentalSummary();
 
             // Fetch No Unit (from the inventory table)
             int unitTotalCount = dbRepo.GetUnitTotal();
@@ -147,7 +148,7 @@ namespace WinFormsSampleApp1.Properties
                             row.Cells["ActionColumn"].Value = "Return";
                             break;
                         case "maintenance":
-                            row.Cells["ActionColumn"].Value = "Available";
+                            row.Cells["ActionColumn"].Value = "Make Available";
                             break;
                         default:
                             row.Cells["ActionColumn"].Value = "";
@@ -160,6 +161,30 @@ namespace WinFormsSampleApp1.Properties
                 MessageBox.Show("Error loading inventory data: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+        private void LoadRentalSummary(string searchTerm = null)
+        {
+            try
+            {
+                // Fetch rental history data from the database
+                DataTable rentalRentaSummarylData = dbRepo.GetRentaSummary(searchTerm);
+
+                // Bind the data to the DataGridView first
+                dataGridViewItemSummary.DataSource = rentalRentaSummarylData;
+
+                // Now it's safe to modify column visibility
+                if (dataGridViewItemSummary.Columns.Contains("product_id"))
+                {
+                    dataGridViewItemSummary.Columns["product_id"].Visible = false;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading rental history data: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
 
         private void dataGridViewINV_CellContentClick_1(object sender, DataGridViewCellEventArgs e)
         {
@@ -189,7 +214,7 @@ namespace WinFormsSampleApp1.Properties
                 ReturnProduct(productId);
             }
             // Handle Available button click
-            else if (buttonText?.Equals("Available", StringComparison.OrdinalIgnoreCase) == true)
+            else if (buttonText?.Equals("Make Available", StringComparison.OrdinalIgnoreCase) == true)
             {
                 // Implement available logic here
                 MarkAsAvailable(productId);
@@ -308,6 +333,7 @@ namespace WinFormsSampleApp1.Properties
                         // Refresh data after successful operation
                         LoadInventoryData();
                         LoadProductData();
+                        LoadRentalSummary();
                     }
                 }
             }
@@ -342,14 +368,54 @@ namespace WinFormsSampleApp1.Properties
 
         private void ReturnProduct(string productId)
         {
-            // Implement your return logic here
-            // Similar structure to RentProduct
+            try
+            {
+                if (dbRepo.ReturnProduct(productId))
+                {
+                    MessageBox.Show("Product return successfully!", "Success",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // Refresh data after successful operation
+                    LoadInventoryData();
+                    LoadProductData();
+                    LoadRentalSummary();
+                }
+                else
+                {
+                    MessageBox.Show("Failed to return the product", "Error",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error returning product: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void MarkAsAvailable(string productId)
         {
-            // Implement your available logic here
-            // Similar structure to RentProduct
+            try
+            {
+                if (dbRepo.MarkAvailableProduct(productId))
+                {
+                    MessageBox.Show("Product is available!", "Success",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // Refresh data after successful operation
+                    LoadInventoryData();
+                    LoadProductData();
+                    LoadRentalSummary();
+                }
+                else
+                {
+                    MessageBox.Show("Failed to mark the product available", "Error",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error updating product as available: {ex.Message}", "Error",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void LoadProductData(string searchTerm = null)
@@ -380,6 +446,7 @@ namespace WinFormsSampleApp1.Properties
             // Reload the data with the search term
             LoadInventoryData(searchTerm);
             LoadProductData(searchTerm);
+
         }
 
         private void RENTALSbutton_Click(object sender, EventArgs e)

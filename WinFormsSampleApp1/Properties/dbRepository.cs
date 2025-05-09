@@ -4,6 +4,8 @@ using MySql.Data.MySqlClient;
 using Org.BouncyCastle.Asn1.Cmp;
 using WinFormsSampleApp1.Properties.Models;
 using BCrypt.Net;
+using OfficeOpenXml;
+using System.IO;
 
 namespace WinFormsSampleApp1.Properties
 {
@@ -393,7 +395,7 @@ namespace WinFormsSampleApp1.Properties
                 using (MySqlConnection conn = new MySqlConnection(ConnectionString))
                 {
                     conn.Open();
-                    string query = "SELECT SUM(total_amount) AS TotalRevenue FROM payment WHERE payment_status = 'done'";
+                    string query = "SELECT SUM(amount) AS TotalRevenue FROM fee WHERE paid = '1'";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
                         object result = cmd.ExecuteScalar(); // ExecuteScalar returns a single value
@@ -1709,13 +1711,13 @@ namespace WinFormsSampleApp1.Properties
 
                     // Query to fetch data from the payment table with employee full name
                     string query = @"
-                    SELECT 
-                        p.*,
-                        e.full_name AS received_by_employee_name
-                    FROM 
-                        payment p
-                    LEFT JOIN 
-                        employee e ON p.received_by_employee_id = e.id";
+                            SELECT 
+                                p.*,
+                                e.full_name AS received_by_employee_name
+                            FROM 
+                                payment p
+                            LEFT JOIN 
+                                employee e ON p.received_by_employee_id = e.id";
 
                     // Add a WHERE clause if a rentalAgreementId is provided
                     if (!string.IsNullOrEmpty(rentalAgreementId))
@@ -2070,6 +2072,133 @@ namespace WinFormsSampleApp1.Properties
             }
         }
 
+        public bool ReturnProduct(string productId)
+        {
+            int inventoryId = Convert.ToInt32(productId);
+
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                try
+                {
+                    conn.Open();
+
+                    // Step 1: Get serial_number_id from inventory
+                    string getSerialQuery = "SELECT serial_number FROM inventory WHERE id = @inventoryId";
+                    string serialNumberId = null;
+
+                    using (MySqlCommand cmd = new MySqlCommand(getSerialQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@inventoryId", inventoryId);
+                        var result = cmd.ExecuteScalar();
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            serialNumberId = result.ToString();
+                        }
+                        else
+                        {
+                            // No serial number found
+                            MessageBox.Show("No serial number found for this product.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
+                    }
+
+                    // Step 2: Check rental_agreement_details for this serial_number_id
+                    string getAgreementIdQuery = "SELECT rental_agreement_id FROM rental_agreement_details WHERE serial_number_id = @serialNumberId LIMIT 1";
+                    int? rentalAgreementId = null;
+
+                    using (MySqlCommand cmd = new MySqlCommand(getAgreementIdQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@serialNumberId", serialNumberId);
+                        var result = cmd.ExecuteScalar();
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            rentalAgreementId = Convert.ToInt32(result);
+                        }
+                        else
+                        {
+                            // No agreement found for this serial number
+                            MessageBox.Show("This item is not linked to any active rental agreement.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            // Allow update since it's not part of an agreement
+                            goto UpdateInventory;
+                        }
+                    }
+
+                    // Step 3: Check status of rental_agreement
+                    string getStatusQuery = "SELECT status FROM rental_agreement WHERE id = @rentalAgreementId";
+                    string status = "";
+
+                    using (MySqlCommand cmd = new MySqlCommand(getStatusQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId.Value);
+                        var result = cmd.ExecuteScalar();
+
+                        if (result != null && result != DBNull.Value)
+                        {
+                            status = result.ToString().ToLower();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Unable to retrieve agreement status.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
+                    }
+
+                    // Step 4: Prevent update if agreement is completed or terminated
+                    if (status == "pending" || status == "active")
+                    {
+                        MessageBox.Show("Cannot update inventory. The rental agreement is already " + status + ".", "Blocked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return false;
+                    }
+
+                UpdateInventory:
+                    // Step 5: Proceed with inventory update
+                    string updateQuery = "UPDATE inventory SET status = 'maintenance' WHERE id = @inventoryId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(updateQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@inventoryId", inventoryId);
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("An error occurred: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+            }
+        }
+
+        public bool MarkAvailableProduct(string productId)
+        {
+            int inventoryid = Convert.ToInt32(productId);
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                string query = @"UPDATE inventory 
+                         SET status = 'available'
+                         WHERE id = @inventoryid";
+
+                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@inventoryid", inventoryid);
+
+                    try
+                    {
+                        conn.Open();
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0;
+                    }
+                    catch (Exception)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+
         public bool InsertFee(int rentalAgreementId, string feeType, decimal amount, string description)
         {
             try
@@ -2127,6 +2256,305 @@ namespace WinFormsSampleApp1.Properties
                 return false;
             }
         }
+
+        public DataTable GetFeesByRentalAgreement(int rentalAgreementId)
+        {
+            string query = @"SELECT id, fee_type, amount, description 
+                    FROM fee 
+                    WHERE rental_agreement_id = @rentalAgreementId 
+                    AND paid = 0"; // Only unpaid fees
+
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+
+                MySqlDataAdapter adapter = new MySqlDataAdapter(cmd);
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
+                return dt;
+            }
+        }
+
+        public bool ProcessPayment(int rentalAgreementId, List<int> feeIds, decimal amount, string employeeEmail, string paymentMethod, string referenceNumber)
+        {
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Get employee id
+                        string getEmployeeQuery = @"SELECT id FROM employee WHERE email = @employeeEmail";
+                        int employeeId = 0;
+
+                        using (MySqlCommand cmd = new MySqlCommand(getEmployeeQuery, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@employeeEmail", employeeEmail);
+                            object result = cmd.ExecuteScalar();
+                            if (result == null)
+                            {
+                                transaction.Rollback();
+                                return false;
+                            }
+                            employeeId = Convert.ToInt32(result);
+                        }
+
+                        // 2. Calculate total of selected fees
+                        decimal totalDue = 0;
+                        string sumQuery = @"SELECT SUM(amount) FROM fee 
+                          WHERE id IN (" + string.Join(",", feeIds) + ")";
+
+                        using (MySqlCommand sumCmd = new MySqlCommand(sumQuery, conn, transaction))
+                        {
+                            object result = sumCmd.ExecuteScalar();
+                            totalDue = result != DBNull.Value ? Convert.ToDecimal(result) : 0;
+                        }
+
+                        // 3. Verify payment amount matches
+                        if (amount != totalDue)
+                        {
+                            transaction.Rollback();
+                            return false;
+                        }
+
+                        // 4. Mark fees as paid
+                        string updateFees = @"UPDATE fee SET paid = 1 
+                            WHERE id IN (" + string.Join(",", feeIds) + ")";
+
+                        using (MySqlCommand updateCmd = new MySqlCommand(updateFees, conn, transaction))
+                        {
+                            updateCmd.ExecuteNonQuery();
+                        }
+
+                        // 5. Update the payment record instead of inserting a new one
+                        string updatePayment = @"UPDATE payment SET
+                            payment_date = NOW(),
+                            payment_method = @paymentMethod,
+                            payment_status = 'done',
+                            reference_number = @referenceNumber,
+                            received_by_employee_id = @employeeId
+                        WHERE rental_agreement_id = @rentalAgreementId AND payment_status != 'done'
+                        LIMIT 1";
+
+                        using (MySqlCommand payCmd = new MySqlCommand(updatePayment, conn, transaction))
+                        {
+                            payCmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+                            payCmd.Parameters.AddWithValue("@paymentMethod", paymentMethod);
+                            payCmd.Parameters.AddWithValue("@referenceNumber", referenceNumber);
+                            payCmd.Parameters.AddWithValue("@employeeId", employeeId);
+                            int rowsAffected = payCmd.ExecuteNonQuery();
+
+                            if (rowsAffected == 0)
+                            {
+                                // No incomplete payment found to update
+                                transaction.Rollback();
+                                return false;
+                            }
+                        }
+
+                        transaction.Commit();
+                        return true;
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        public bool RenewRentalAgreement(int rentalAgreementId)
+        {
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                string query = @"UPDATE rental_agreement 
+                         SET status = 'active'
+                         WHERE id = @rentalAgreementId";
+
+                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+
+                    try
+                    {
+                        conn.Open();
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool UpdateRentalAgreementStatusToComplete(int rentalAgreementId)
+        {
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                string query = @"UPDATE rental_agreement 
+                         SET status = 'completed'
+                         WHERE id = @rentalAgreementId";
+
+                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+
+                    try
+                    {
+                        conn.Open();
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0;
+                    }
+                    catch (Exception)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool TerminateRentalAgreement(int rentalAgreementId)
+        {
+            using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+            {
+                string query = @"UPDATE rental_agreement 
+                         SET status = 'terminated'
+                         WHERE id = @rentalAgreementId AND status != 'completed'";
+
+                using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+
+                    try
+                    {
+                        conn.Open();
+                        int rowsAffected = cmd.ExecuteNonQuery();
+                        return rowsAffected > 0;
+                    }
+                    catch (Exception)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool ExportTransactionHistoryToExcel(int rentalAgreementId, string filePath)
+        {
+            try
+            {
+                // Ensure directory exists
+                var directory = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                // Fetch data from DB (unchanged)
+                var dataTable = new DataTable("TransactionHistory");
+
+                using (MySqlConnection conn = new MySqlConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    string query = @"
+                SELECT 
+                    t.full_name, t.email, t.mobile,
+                    f.fee_type, f.amount, f.paid
+                FROM fee f
+                JOIN rental_agreement r ON f.rental_agreement_id = r.id
+                JOIN tenant t ON r.tenant_id = t.id
+                WHERE f.rental_agreement_id = @rentalAgreementId";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@rentalAgreementId", rentalAgreementId);
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            adapter.Fill(dataTable);
+                        }
+                    }
+
+                    if (dataTable.Rows.Count == 0)
+                    {
+                        MessageBox.Show("No data found for this agreement.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return false;
+                    }
+                }
+
+                // Create Excel file
+                var fileInfo = new FileInfo(filePath);
+
+                // Delete existing file if needed
+                if (fileInfo.Exists)
+                {
+                    fileInfo.Delete();
+                }
+
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+                using (var package = new ExcelPackage(fileInfo))
+                {
+                    var worksheet = package.Workbook.Worksheets.Add("Transaction History");
+
+                    int row = 1;
+
+                    // Tenant Info
+                    worksheet.Cells[row, 1].Value = "Tenant Name: " + dataTable.Rows[0]["full_name"];
+                    row++;
+
+                    worksheet.Cells[row, 1].Value = "Email: " + dataTable.Rows[0]["email"];
+                    row++;
+
+                    worksheet.Cells[row, 1].Value = "Mobile: " + dataTable.Rows[0]["mobile"];
+                    row += 2;
+
+                    // Headers
+                    worksheet.Cells[row, 1].Value = "Fee Type";
+                    worksheet.Cells[row, 2].Value = "Amount";
+                    worksheet.Cells[row, 1, row, 2].Style.Font.Bold = true;
+                    row++;
+
+                    decimal total = 0;
+
+                    foreach (DataRow dr in dataTable.Rows)
+                    {
+                        string feeType = dr["fee_type"].ToString();
+                        decimal amount = Convert.ToDecimal(dr["amount"]);
+
+                        worksheet.Cells[row, 1].Value = feeType;
+                        worksheet.Cells[row, 2].Value = amount;
+
+                        total += amount;
+                        row++;
+                    }
+
+                    row += 1;
+                    worksheet.Cells[row, 2].Value = $"Total Amount: {total:C}";
+
+                    // Format columns
+                    worksheet.Column(1).AutoFit();
+                    worksheet.Column(2).AutoFit();
+
+                    package.Save();
+                }
+
+                MessageBox.Show("Transaction history exported successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error exporting to Excel: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+
 
 
 
