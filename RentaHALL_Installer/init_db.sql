@@ -1,0 +1,4 @@
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'Eric@tripulca.com';
+CREATE DATABASE IF NOT EXISTS RentaHALL2;
+GRANT ALL PRIVILEGES ON RentaHALL2.* TO 'root'@'localhost';
+FLUSH PRIVILEGES;
